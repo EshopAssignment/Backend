@@ -4,7 +4,7 @@ using Application.Interfaces;
 using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
-namespace Application.Services;
+namespace Infrastructure.Services;
 
 public class ProductService(PallshoppenDbContext dbContext) : IProductService
 {

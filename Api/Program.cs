@@ -1,5 +1,5 @@
 using Application.Interfaces;
-using Application.Services;
+using Infrastructure.Services;
 using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -26,7 +26,11 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Pallshoppen API v1");
+        options.RoutePrefix = string.Empty; // <-- gör swagger till root (/)
+    });
 }
 
 app.UseHttpsRedirection();
