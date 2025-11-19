@@ -6,8 +6,7 @@ public class Order
 {
     public int Id { get; set; }
     public string OrderNumber { get; set; } = null!;
-    public DateTime OrderDate { get; set; }
-
+    public DateTime OrderDate { get; set; } = DateTime.UtcNow;
     public string CustomerFirstName { get; set; } = null!;
     public string CustomerLastName { get; set; } = null!;
     public string CustomerEmail { get; set; } = null!;

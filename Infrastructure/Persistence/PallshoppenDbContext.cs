@@ -83,6 +83,10 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
                 .WithOne(i => i.Order)
                 .HasForeignKey(i => i.OrderId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(o => o.OrderStatus)
+                .HasMaxLength(32)
+                .IsRequired();
         });
 
         // OrderItem
@@ -97,6 +101,10 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
 
             entity.Property(i => i.LineTotal)
                 .HasColumnType("decimal(18,2)");
+
+            entity.HasOne(i => i.Product)
+                .WithMany()
+                .HasForeignKey(i => i.ProductId);
         });
     }
 
