@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-
+//Cors Configuration.
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
@@ -15,6 +15,7 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod();
     });
 });
+
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -26,7 +27,9 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<PallshoppenDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+//Services
 builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
 
 //Register HostedService(Background seeder)
 builder.Services.AddHostedService<DatabaseInitializerHostedService>();
