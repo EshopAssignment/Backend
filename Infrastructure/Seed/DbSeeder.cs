@@ -48,6 +48,39 @@ public static class DbSeeder
                 StockQuantity = 200,
                 ImgUrl = "/images/not-implemented.jpg",
                 IsActive = true
+            },
+            new()
+            {
+                Name = "Spån",
+                Description = "Spån utvunnen från spillvirke",
+                PalletType = "Spån",
+                Condition = "Ny",
+                Price = 50,
+                StockQuantity = 200,
+                ImgUrl = "/images/not-implemented.jpg",
+                IsActive = true
+            },
+            new()
+            {
+                Name = "Kontainer Pall",
+                Description = "XXL",
+                PalletType = "Halvpall",
+                Condition = "Ny",
+                Price = 500,
+                StockQuantity = 200,
+                ImgUrl = "/images/not-implemented.jpg",
+                IsActive = true
+            },
+            new()
+            {
+                Name = "EU-Pall(Refurbished)",
+                Description = "Den perfekta pallen, nu lagad",
+                PalletType = "EUR",
+                Condition = "Refurbished",
+                Price = 120,
+                StockQuantity = 50,
+                ImgUrl = "/images/not-implemented.jpg",
+                IsActive = true
             }
         };
 
