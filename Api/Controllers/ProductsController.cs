@@ -6,7 +6,7 @@ namespace Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class ProductsController(IProductService productService) : Controller
+public class ProductsController(IProductService productService) : ControllerBase
 {
 
 
@@ -21,7 +21,7 @@ public class ProductsController(IProductService productService) : Controller
     [HttpGet("{id:int}")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ProductDto))]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetbytId(int id, CancellationToken cancellationtoken)
+    public async Task<IActionResult> GetBytId(int id, CancellationToken cancellationtoken)
     {
         var product = await productService.GetByIdAsync(id, cancellationtoken);
 
