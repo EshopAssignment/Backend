@@ -6,5 +6,6 @@ namespace Application.Interfaces
     {
         Task<IReadOnlyList<ProductDto>> GetAllAsync(CancellationToken cancellationToken = default);
         Task<ProductDto?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
+        Task<PagedResult<ProductDto>> GetAllPagedAsync(int page, int pageSize, CancellationToken cancellationToken);
     }
 }

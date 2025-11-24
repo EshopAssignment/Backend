@@ -27,6 +27,42 @@ public class ProductService(PallshoppenDbContext dbContext) : IProductService
                 ))
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<PagedResult<ProductDto>> GetAllPagedAsync(int page, int pageSize, CancellationToken cancellationToken)
+    {
+        var query = dbContext.Products
+            .Where(p => p.IsActive)
+            .OrderBy(p => p.Id)
+            .AsQueryable();
+
+        var total = await query.CountAsync(cancellationToken);
+
+        var items = await query
+            .Skip((page -1) * pageSize)
+            .Take(pageSize)
+            .Select(p => new ProductDto(
+                p.Id,
+                p.Name,
+                p.Description,
+                p.PalletType,
+                p.Condition,
+                p.Price,
+                p.StockQuantity,
+                p.ImgUrl,
+                p.IsActive
+                ))
+            .ToListAsync(cancellationToken);
+
+        return new PagedResult<ProductDto>
+        {
+            Page = page,
+            PageSize = pageSize,
+            TotalItems = total,
+            TotalPages = (int)Math.Ceiling(total / (double)pageSize),
+            Items = items
+        };
+    }
+
     public async Task<ProductDto?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
         var p = await dbContext.Products
