@@ -14,10 +14,18 @@ public class ProductsController(IProductService productService) : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(IEnumerable<ProductDto>))]
     public async Task<IActionResult> GetAll(
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 4,  
+        [FromQuery] int pageSize = 4,
+        [FromQuery] string? query = null,
+        [FromQuery] string? sort = null,
+        [FromQuery] List<string>? type = null,
+        [FromQuery] List<string>? condition = null,
+        [FromQuery] decimal? minPrice = null,
+        [FromQuery] decimal? maxPrice = null,
+
         CancellationToken cancellationtoken = default)
     {
-        var products = await productService.GetAllPagedAsync(page, pageSize, cancellationtoken);
+        var products = await productService.GetAllPagedAsync(
+            page, pageSize, query, sort, type, condition, minPrice, maxPrice, cancellationtoken);
         return Ok(products);
     }
 
