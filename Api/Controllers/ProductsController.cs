@@ -21,10 +21,9 @@ public class ProductsController(IProductService productService) : ControllerBase
         [FromQuery] List<string>? condition = null,
         [FromQuery] decimal? minPrice = null,
         [FromQuery] decimal? maxPrice = null,
-
         CancellationToken cancellationtoken = default)
     {
-        var products = await productService.GetAllPagedAsync(
+        var products = await productService.GetAllAsync(
             page, pageSize, query, sort, type, condition, minPrice, maxPrice, cancellationtoken);
         return Ok(products);
     }

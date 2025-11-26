@@ -34,6 +34,8 @@ builder.Services.AddScoped<IOrderService, OrderService>();
 //Register HostedService(Background seeder)
 builder.Services.AddHostedService<DatabaseInitializerHostedService>();
 
+
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())

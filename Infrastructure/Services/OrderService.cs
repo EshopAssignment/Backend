@@ -23,7 +23,7 @@ public class OrderService(PallshoppenDbContext dbContext) : IOrderService
             .Where(p => productIds.Contains(p.Id) && p.IsActive)
             .ToListAsync(cancellationToken);
 
-    
+
 
         if (products.Count != productIds.Count)
         {
@@ -61,7 +61,7 @@ public class OrderService(PallshoppenDbContext dbContext) : IOrderService
                 ProductName = product.Name,
                 UnitPrice = unitPrice,
                 Quantity = item.Quantity,
-                LineTotal  = lineTotal,
+                LineTotal = lineTotal,
                 Order = order,
 
             };
@@ -89,6 +89,27 @@ public class OrderService(PallshoppenDbContext dbContext) : IOrderService
             order.Total
             );
     }
+
+
+
+    public async Task<OrderCreatedDto?> GetOrderByIdAsync(int id, CancellationToken ct)
+    {
+        var order = await dbContext.Orders
+            .AsNoTracking()
+            .FirstOrDefaultAsync(o => o.Id == id, ct);
+
+        if (order is null) return null;
+
+        return new OrderCreatedDto(
+            order.Id,
+            order.OrderNumber,
+            order.OrderDate,
+            order.Total
+        );
+    }
+
+
+
 
     //Tiny helper to generate a ordernumber. 
     private static string GenerateOrderNumber()

@@ -9,12 +9,14 @@ namespace Api.Controllers;
 public class OrderController(IOrderService orderService) : ControllerBase
 {
     [HttpPost]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(OrderCreatedDto))]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(OrderCreatedDto))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Create([FromBody] CreateOrderRequestDto request, CancellationToken cancellationToken = default)
     {
         if (request.Items is null || request.Items.Count == 0)
             return BadRequest("Order must contain atleast one item");
+        if (request.Items.Any(i => i.Quantity <= 0))
+            return BadRequest("item quantity must be >= 1");
 
         try
         {
@@ -24,7 +26,8 @@ public class OrderController(IOrderService orderService) : ControllerBase
                 nameof(GetById),
                 new { id = result.OrderId },
                 result
-                );
+
+            );
         }
         catch(InvalidOperationException ex)
         {
@@ -33,12 +36,17 @@ public class OrderController(IOrderService orderService) : ControllerBase
        
     }
 
+
     [HttpGet("{id:int}")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(OrderCreatedDto))]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetById(int id, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetById(int id, CancellationToken cancellationToken = default)
     {
-        //not implemeted
-        return NotFound();
+        if (id <= 0) return NotFound();
+
+        var dto = await orderService.GetOrderByIdAsync(id, cancellationToken);
+            if (dto is null) return NotFound();
+
+        return Ok(dto);
     }
 }
