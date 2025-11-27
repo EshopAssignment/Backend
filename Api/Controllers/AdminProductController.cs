@@ -1,4 +1,5 @@
 ﻿using System.Runtime.InteropServices;
+using Application.DTOs;
 using Application.DTOs.Admin;
 using Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -10,10 +11,26 @@ namespace Api.Controllers;
 public class AdminProductController(IProductService productService, IWebHostEnvironment env) : ControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
-        => Ok (await productService.GetAllAsync(page, pageSize, null, null, null, null, null, null, ct));
-    
-    
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResult<ProductDto>))]
+    public async Task<IActionResult> GetAll(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? query = null,
+        [FromQuery] string? sort = null,
+        [FromQuery] List<string>? type = null,
+        [FromQuery] List<string>? condition = null,
+        [FromQuery] decimal? minPrice = null,
+        [FromQuery] decimal? maxPrice = null,
+        [FromQuery] bool? isActive = null,
+        CancellationToken ct = default)
+    {
+        var result = await productService.GetAllAdminAsync(
+            page, pageSize, query, sort, type, condition, minPrice, maxPrice, isActive, ct);
+
+        return Ok(result);
+    }
+
+
     [HttpGet("{id:int}", Name = "GetProductById_AdminEcho")]
     public async Task<IActionResult> GetById(int id, CancellationToken ct)
     {
@@ -60,10 +77,18 @@ public class AdminProductController(IProductService productService, IWebHostEnvi
     }
 
     [HttpPatch("{id:int}/activate")]
-    public async Task<IActionResult> ToggleActive(int id, [FromBody] bool IsActive, CancellationToken ct = default)
+    public async Task<IActionResult> ToggleActive(
+        int id,
+        [FromBody] ToggleActiveRequest? body,        
+        [FromQuery] bool? isActive,                  
+        CancellationToken ct = default)
     {
-        var ok = await productService.SetActiveAsync(id, IsActive, ct);
-        return ok? NoContent() : NotFound();
+        var value = body?.IsActive ?? isActive;
+        if (value is null)
+            return BadRequest("sum ting wong");
+
+        var ok = await productService.SetActiveAsync(id, value.Value, ct);
+        return ok ? NoContent() : NotFound();
     }
 
 

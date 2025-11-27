@@ -68,6 +68,59 @@ public class ProductService(PallshoppenDbContext dbContext) : IProductService
             Items = item
         };
     }
+    public async Task<PagedResult<ProductDto>> GetAllAdminAsync(int page, int pageSize, string? query, string? sort,List<string>? type, List<string>? condition, decimal? minPrice, decimal? maxPrice, bool? isActive, CancellationToken ct)
+    {
+        var q = dbContext.Products.AsNoTracking().AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(query))
+        {
+            var term = query.Trim();
+            q = q.Where(p =>
+                p.Name.Contains(term) ||
+                p.Description.Contains(term) ||
+                p.PalletType.Contains(term) ||
+                p.Condition.Contains(term));
+        }
+
+        if (type is { Count: > 0 })
+            q = q.Where(p => type.Contains(p.PalletType));
+
+        if (condition is { Count: > 0 })
+            q = q.Where(p => condition.Contains(p.Condition));
+
+        if (minPrice.HasValue) q = q.Where(p => p.Price >= minPrice.Value);
+        if (maxPrice.HasValue) q = q.Where(p => p.Price <= maxPrice.Value);
+
+        if (isActive.HasValue) q = q.Where(p => p.IsActive == isActive.Value);
+
+        q = sort switch
+        {
+            "price_asc" => q.OrderBy(p => p.Price),
+            "price_desc" => q.OrderByDescending(p => p.Price),
+            "name_asc" => q.OrderBy(p => p.Name),
+            "name_desc" => q.OrderByDescending(p => p.Name),
+            _ => q.OrderBy(p => p.Id),
+        };
+
+        var total = await q.CountAsync(ct);
+        var items = await q
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(p => new ProductDto(
+                p.Id, p.Name, p.Description, p.PalletType, p.Condition,
+                p.Price, p.StockQuantity, p.ImgUrl, p.IsActive))
+            .ToListAsync(ct);
+
+        return new PagedResult<ProductDto>
+        {
+            Page = page,
+            PageSize = pageSize,
+            TotalItems = total,
+            TotalPages = (int)Math.Ceiling(total / (double)pageSize),
+            Items = items
+        };
+    }
+
     public async Task<ProductDto?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
         var p = await dbContext.Products
@@ -166,10 +219,6 @@ public class ProductService(PallshoppenDbContext dbContext) : IProductService
         if (req.StockQuantity < 0)
             throw new ArgumentOutOfRangeException(nameof(req.StockQuantity), "Stock måste vara 1+");
 
-        var exists = await dbContext.Products.AnyAsync(p => p.Name == name, ct);
-        if (exists)
-            throw new InvalidOperationException("Produkt finns redan");
-
         var entity = await dbContext.Products.FirstOrDefaultAsync(p => p.Id == id, ct);
         if (entity is null)
             throw new KeyNotFoundException($"Produkt {id} finns inte");
@@ -199,5 +248,7 @@ public class ProductService(PallshoppenDbContext dbContext) : IProductService
             p.ImgUrl,
             p.IsActive
         );
+
+
 }
 
