@@ -25,3 +25,5 @@ public record AdminUpdateProductRequestDto(
     string ImgUrl,
     bool IsActive
 );
+
+public record ToggleActiveRequest(bool IsActive);
