@@ -2,6 +2,7 @@ using Application.Interfaces;
 using Infrastructure.Services;
 using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,8 +20,8 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddOpenApi();
 
-builder.Services.AddSwaggerGen();
 
 //Configure DbContext(SQLServer)
 
@@ -38,15 +39,16 @@ builder.Services.AddHostedService<DatabaseInitializerHostedService>();
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
+app.MapOpenApi();
+
+app.MapScalarApiReference(options =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(options =>
-    {
-        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Pallshoppen API v1");
-        options.RoutePrefix = string.Empty; 
-    });
-}
+    options.Title = "Pallshop API";
+    options.Theme = ScalarTheme.Kepler;
+}).ExcludeFromDescription();
+
+app.MapGet("/", () => Results.Redirect("/scalar"))
+    .ExcludeFromDescription();
 
 app.UseHttpsRedirection();
 
