@@ -1,5 +1,4 @@
 ﻿
-using System;
 using Application.DTOs;
 using Application.DTOs.Admin;
 using Application.Interfaces;
@@ -11,10 +10,8 @@ namespace Infrastructure.Services;
 
 public class ProductService(PallshoppenDbContext dbContext) : IProductService
 {
-
-
-    public async Task<PagedResult<ProductDto>> GetAllAsync(
-        int page, int pageSize, string? query, string? sort, List<string>? type, List<string>? condition, decimal? minPrice, decimal? maxPrice, CancellationToken ct)
+    public async Task<PagedResult<ProductDto>> GetAllAsync(int page, int pageSize, string? query, string? sort, List<string>? type, List<string>? condition, decimal? minPrice, decimal? maxPrice, CancellationToken ct)
+        
     {
         var q = dbContext.Products.AsNoTracking().Where(p => p.IsActive);
 
@@ -120,7 +117,6 @@ public class ProductService(PallshoppenDbContext dbContext) : IProductService
             Items = items
         };
     }
-
     public async Task<ProductDto?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
         var p = await dbContext.Products
@@ -248,7 +244,5 @@ public class ProductService(PallshoppenDbContext dbContext) : IProductService
             p.ImgUrl,
             p.IsActive
         );
-
-
 }
 
