@@ -16,5 +16,8 @@ public class Product
 
     public string ImgUrl { get; set; } = null!;
     public bool IsActive { get; set; }
+
+    public string? Sku { get; set; } //nullable change later
+    public string? Slug { get; set; } //nullable change later
 }
    

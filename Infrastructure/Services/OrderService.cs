@@ -1,6 +1,6 @@
 ﻿
 using System.Linq;
-using Application.DTOs;
+using Application.DTOs.Order;
 using Application.Interfaces;
 using Domain.Entities;
 using Infrastructure.Persistence;

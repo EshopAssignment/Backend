@@ -1,6 +1,4 @@
-﻿
-
-namespace Application.DTOs;
+﻿namespace Application.DTOs.Order;
 
 public sealed record CreateOrderRequestDto(
     string CustomerFirstName,

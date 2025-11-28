@@ -1,6 +1,5 @@
-﻿
-using Application.DTOs;
-using Application.DTOs.Admin;
+﻿using Application.DTOs.Admin;
+using Application.DTOs.Product;
 using Application.Interfaces;
 using Domain.Entities;
 using Infrastructure.Persistence;
@@ -244,5 +243,23 @@ public class ProductService(PallshoppenDbContext dbContext) : IProductService
             p.ImgUrl,
             p.IsActive
         );
+
+    public async Task<IEnumerable<ProductSuggestionDto>> SuggestionAsync(string q, int take, CancellationToken ct)
+    {
+        var term = q.Trim();
+        var size = Math.Clamp(take, 1, 20);
+
+        return await dbContext.Products
+            .AsNoTracking()
+            .Where(p => p.IsActive &&
+            (EF.Functions.Like(p.Name, $"%{term}%") ||
+            EF.Functions.Like(p.Sku!, $"%{term}%") ||
+            EF.Functions.Like(p.Slug!, $"%{term}%")))
+            .OrderBy(p => p.Name)
+            .Take(size)
+            .Select(p => new ProductSuggestionDto(
+                p.Id, p.Name, p.Price, p.ImgUrl, p.Slug, p.Sku))
+            .ToListAsync(ct);
+    } 
 }
 
