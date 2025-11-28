@@ -1,5 +1,5 @@
-﻿using Application.DTOs;
-using Application.DTOs.Admin;
+﻿using Application.DTOs.Admin;
+using Application.DTOs.Product;
 
 namespace Application.Interfaces;
 
@@ -12,5 +12,6 @@ public interface IProductService
     Task<ProductDto> UpdateAsync(int id, AdminUpdateProductRequestDto req, CancellationToken ct);
     Task SetImageUrlAsync(int id, string imgUrl, CancellationToken ct);
     Task<bool> SetActiveAsync(int id, bool IsActive, CancellationToken ct);
+    Task<IEnumerable<ProductSuggestionDto>> SuggestionAsync(string q, int take, CancellationToken ct);
 
 }

@@ -1,6 +1,4 @@
-﻿
-
-namespace Application.DTOs;
+﻿namespace Application.DTOs.Product;
 
 public class PagedResult<T>
 {

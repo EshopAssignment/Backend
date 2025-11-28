@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
-using Application.DTOs;
+using Application.DTOs.Order;
 
 namespace Application.Interfaces;
 

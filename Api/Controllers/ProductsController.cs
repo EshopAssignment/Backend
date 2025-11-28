@@ -1,4 +1,4 @@
-﻿using Application.DTOs;
+﻿using Application.DTOs.Product;
 using Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -31,7 +31,7 @@ public class ProductsController(IProductService productService) : ControllerBase
     [HttpGet("{id:int}")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ProductDto))]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetBytId(int id, CancellationToken cancellationtoken)
+    public async Task<IActionResult> GetById(int id, CancellationToken cancellationtoken)
     {
         var product = await productService.GetByIdAsync(id, cancellationtoken);
 
@@ -39,5 +39,17 @@ public class ProductsController(IProductService productService) : ControllerBase
             return NotFound();
 
         return Ok(product);
+    }
+
+    [HttpGet]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(IEnumerable<ProductSuggestionDto>))]
+
+    public async Task<IActionResult> Suggestion([FromQuery] string q, [FromQuery] int take = 8, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(q))
+            return Ok(Array.Empty<ProductSuggestionDto>());
+
+        var result = await productService.SuggestionAsync(q, take, ct);
+        return Ok(result);
     }
 }

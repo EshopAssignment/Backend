@@ -30,6 +30,33 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
 
             entity.Property(p => p.Price)
                 .HasColumnType("decimal(18,2)");
+
+            entity.Property(p => p.Sku)
+                .HasMaxLength(100)       
+                .IsRequired(false);
+
+            entity.Property(p => p.Slug)
+                .HasMaxLength(200)
+                .IsRequired(false);
+
+           
+            entity.HasIndex(p => new { p.IsActive, p.Name })
+                  .HasDatabaseName("IX_Products_IsActive_Name");
+
+            entity.HasIndex(p => new { p.IsActive, p.Sku })
+                  .HasDatabaseName("IX_Products_IsActive_Sku");
+
+            entity.HasIndex(p => new { p.IsActive, p.Slug })
+                  .HasDatabaseName("IX_Products_IsActive_Slug");
+
+            //filter to avoid doubles
+            entity.HasIndex(p => p.Slug)
+                  .IsUnique()
+                  .HasFilter("[Slug] IS NOT NULL");  
+
+            entity.HasIndex(p => p.Sku)
+                  .IsUnique()
+                  .HasFilter("[Sku] IS NOT NULL");
         });
 
         // Order
