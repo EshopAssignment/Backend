@@ -41,9 +41,8 @@ public class ProductsController(IProductService productService) : ControllerBase
         return Ok(product);
     }
 
-    [HttpGet]
+    [HttpGet("suggest")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(IEnumerable<ProductSuggestionDto>))]
-
     public async Task<IActionResult> Suggestion([FromQuery] string q, [FromQuery] int take = 8, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(q))
