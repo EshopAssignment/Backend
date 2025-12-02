@@ -1,5 +1,4 @@
 ﻿
-using System.Linq;
 using Application.DTOs.Order;
 using Application.Interfaces;
 using Domain.Entities;
@@ -89,9 +88,6 @@ public class OrderService(PallshoppenDbContext dbContext) : IOrderService
             order.Total
             );
     }
-
-
-
     public async Task<OrderCreatedDto?> GetOrderByIdAsync(int id, CancellationToken ct)
     {
         var order = await dbContext.Orders
@@ -107,10 +103,6 @@ public class OrderService(PallshoppenDbContext dbContext) : IOrderService
             order.Total
         );
     }
-
-
-
-
     //Tiny helper to generate a ordernumber. 
     private static string GenerateOrderNumber()
     {
