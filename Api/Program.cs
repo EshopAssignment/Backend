@@ -21,7 +21,6 @@ builder.Services.AddCors(options =>
     });
 });
 
-
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
@@ -35,6 +34,7 @@ builder.Services.AddDbContext<PallshoppenDbContext>(options =>
 //Services
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<IAdminOrderService, AdminOrderService>();
 
 //Register HostedService(Background seeder)
 builder.Services.AddHostedService<DatabaseInitializerHostedService>();
@@ -45,10 +45,11 @@ var app = builder.Build();
 
 app.MapOpenApi();
 
+//Scalar API Reference
 app.MapScalarApiReference(options =>
 {
     options.Title = "Pallshop API";
-    options.Theme = ScalarTheme.Kepler;
+    options.Theme = ScalarTheme.Moon;
 }).ExcludeFromDescription();
 
 app.MapGet("/", () => Results.Redirect("/scalar"))
