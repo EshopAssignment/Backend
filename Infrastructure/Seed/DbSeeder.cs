@@ -1,5 +1,5 @@
-﻿
-using Domain.Entities;
+﻿using Domain.Entities;
+using Domain.Enums;
 using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,81 +10,103 @@ public static class DbSeeder
     public static async Task SeedAsync(PallshoppenDbContext db, CancellationToken cancellationToken = default)
     {
         if (await db.Products.AnyAsync(cancellationToken))
-        {
             return;
-        }
-        //Seed products. Add more if needed with the same pattern. 
+
+        string Slugify(string input) =>
+            input.Trim().ToLower().Replace(" ", "-").Replace("(", "").Replace(")", "");
+
+        string SkuOf(string name) =>
+            "SKU-" + Guid.NewGuid().ToString("N")[..8].ToUpper();
+
         var products = new List<Product>
         {
             new()
             {
                 Name = "EU-Pall",
                 Description = "Den Perfekta pallen",
-                PalletType = "EUR",
-                Condition = "Ny",
-                Price = 300,
-                StockQuantity = 100,
+                PalletType = ProductType.EuroPallet,
+                Condition = ProductCondition.New,
+                PriceExVat = 300,
+                OnHand = 100,
+                Reserved = 0,
                 ImgUrl = "/images/not-implemented.jpg",
-                IsActive = true
+                IsActive = true,
+                Slug = Slugify("EU-Pall"),
+                Sku = SkuOf("EU-Pall")
             },
             new()
             {
-                Name = "PallKrage",
+                Name = "Pallkrage",
                 Description = "Den perfekta Pallkragen",
-                PalletType = "PallKrage",
-                Condition = "Ny",
-                Price = 230,
-                StockQuantity = 300,
+                PalletType = ProductType.SpecialPallet,
+                Condition = ProductCondition.New,
+                PriceExVat = 230,
+                OnHand = 300,
+                Reserved = 0,
                 ImgUrl = "/images/not-implemented.jpg",
-                IsActive = true
+                IsActive = true,
+                Slug = Slugify("Pallkrage"),
+                Sku = SkuOf("Pallkrage")
             },
             new()
             {
                 Name = "Halvpall",
                 Description = "Storleken spelar ingen roll",
-                PalletType = "Halvpall",
-                Condition = "Refurbished",
-                Price = 150,
-                StockQuantity = 200,
+                PalletType = ProductType.HalfPallet,
+                Condition = ProductCondition.Refurbished,
+                PriceExVat = 150,
+                OnHand = 200,
+                Reserved = 0,
                 ImgUrl = "/images/not-implemented.jpg",
-                IsActive = true
+                IsActive = true,
+                Slug = Slugify("Halvpall"),
+                Sku = SkuOf("Halvpall")
             },
             new()
             {
                 Name = "Spån",
                 Description = "Spån utvunnen från spillvirke",
-                PalletType = "Spån",
-                Condition = "Ny",
-                Price = 50,
-                StockQuantity = 200,
+                PalletType = ProductType.Other,
+                Condition = ProductCondition.New,
+                PriceExVat = 50,
+                OnHand = 200,
+                Reserved = 0,
                 ImgUrl = "/images/not-implemented.jpg",
-                IsActive = true
+                IsActive = true,
+                Slug = Slugify("Spån"),
+                Sku = SkuOf("Spån")
             },
             new()
             {
                 Name = "Kontainer Pall",
-                Description = "XXL",
-                PalletType = "Halvpall",
-                Condition = "Ny",
-                Price = 500,
-                StockQuantity = 200,
+                Description = "XXL pallmodell",
+                PalletType = ProductType.IndustrialPallet,
+                Condition = ProductCondition.New,
+                PriceExVat = 500,
+                OnHand = 200,
+                Reserved = 0,
                 ImgUrl = "/images/not-implemented.jpg",
-                IsActive = true
+                IsActive = true,
+                Slug = Slugify("Kontainer Pall"),
+                Sku = SkuOf("Kontainer Pall")
             },
             new()
             {
-                Name = "EU-Pall(Refurbished)",
+                Name = "EU-Pall (Refurbished)",
                 Description = "Den perfekta pallen, nu lagad",
-                PalletType = "EUR",
-                Condition = "Refurbished",
-                Price = 120,
-                StockQuantity = 50,
+                PalletType = ProductType.EuroPallet,
+                Condition = ProductCondition.Refurbished,
+                PriceExVat = 120,
+                OnHand = 50,
+                Reserved = 0,
                 ImgUrl = "/images/not-implemented.jpg",
-                IsActive = true
+                IsActive = true,
+                Slug = Slugify("EU-Pall Refurbished"),
+                Sku = SkuOf("EU-Pall Refurbished")
             }
         };
 
-        await db.Products.AddRangeAsync(products, cancellationToken); // Add the products to the DbContext and consumes cancellationToken
-        await db.SaveChangesAsync(cancellationToken); // Save changes to the database and consumes cancellationToken
+        await db.Products.AddRangeAsync(products, cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
     }
 }

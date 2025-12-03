@@ -16,22 +16,36 @@ public class OrderService(PallshoppenDbContext dbContext) : IOrderService
             throw new InvalidOperationException("Order must contain one item");
         }
 
-        var productIds = request.Items.Select(i => i.ProductId).ToList();
+
+        var lines = request.Items
+            .GroupBy(i => i.ProductId)
+            .Select(g => new { ProductId = g.Key, Quantity = g.Sum(x => x.Quantity) })
+            .ToList();
+
+        if (lines.Any(l => l.Quantity <= 0))
+            throw new ArgumentOutOfRangeException(nameof(request.Items), "Quantity must be above 0");
+
+        var productIds = lines.Select(l => l.ProductId).ToList();
+
 
         var products = await dbContext.Products
             .Where(p => productIds.Contains(p.Id) && p.IsActive)
             .ToListAsync(cancellationToken);
 
-
-
         if (products.Count != productIds.Count)
+            throw new InvalidOperationException("One or more products a invalid.");
+
+        foreach (var l in lines)
         {
-            throw new InvalidOperationException("One or more products are invalid, inactive or missing.");
+            var p = products.First(x => x.Id == l.ProductId);
+            var available = Math.Max(0, p.OnHand - p.Reserved);
+            if (l.Quantity > available)
+                throw new InvalidOperationException($"Insufficient stock for product {p.Name} (id {p.Id}).");
         }
 
         var order = new Order
         {
-            OrderNumber = GenerateOrderNumber(),
+            OrderNumber = await GenerateUniqueOrderNumberAsync(cancellationToken),
             OrderDate = DateTime.UtcNow,
             CustomerFirstName = request.CustomerFirstName,
             CustomerLastName = request.CustomerLastName,
@@ -44,38 +58,32 @@ public class OrderService(PallshoppenDbContext dbContext) : IOrderService
             OrderStatus = "New"
         };
 
-        var orderItems = new List<OrderItem>();
+
         decimal productsTotal = 0m;
+        var orderItems = new List<OrderItem>(lines.Count);
 
-        foreach (var item in request.Items)
+        foreach (var l in lines)
         {
-            var product = products.First(p => p.Id == item.ProductId);
+            var p = products.First(x => x.Id == l.ProductId);
 
-            var unitPrice = product.Price;
-            var lineTotal = unitPrice * item.Quantity;
+            var unitPrice = p.PriceExVat;
+            var lineTotal = Math.Round(unitPrice * l.Quantity, 2, MidpointRounding.AwayFromZero);
 
-            var orderItem = new OrderItem
+            orderItems.Add(new OrderItem
             {
-                ProductId = product.Id,
-                ProductName = product.Name,
+                ProductId = p.Id,
+                ProductName = p.Name,
                 UnitPrice = unitPrice,
-                Quantity = item.Quantity,
+                Quantity = l.Quantity,
                 LineTotal = lineTotal,
-                Order = order,
-
-            };
-
+                Order = order
+            });
             productsTotal += lineTotal;
-            orderItems.Add(orderItem);
-
         }
 
-        order.ProductsTotal = productsTotal;
-
-        //placeholder Shippingcost before the actual shippingparts are implemented. 
+        order.ProductsTotal = Math.Round(productsTotal, 2, MidpointRounding.AwayFromZero);
         order.ShippingCost = 0m;
-        order.Total = order.ProductsTotal + order.ShippingCost;
-
+        order.Total = Math.Round(order.ProductsTotal + order.ShippingCost, 2, MidpointRounding.AwayFromZero);
         order.OrderItems = orderItems;
 
         dbContext.Orders.Add(order);
@@ -86,24 +94,32 @@ public class OrderService(PallshoppenDbContext dbContext) : IOrderService
             order.OrderNumber,
             order.OrderDate,
             order.Total
-            );
+        );
     }
     public async Task<OrderCreatedDto?> GetOrderByIdAsync(int id, CancellationToken ct)
     {
         var order = await dbContext.Orders
-            .AsNoTracking()
-            .FirstOrDefaultAsync(o => o.Id == id, ct);
+                  .AsNoTracking()
+                  .FirstOrDefaultAsync(o => o.Id == id, ct);
 
         if (order is null) return null;
 
         return new OrderCreatedDto(
-            order.Id,
-            order.OrderNumber,
-            order.OrderDate,
-            order.Total
-        );
+            order.Id, order.OrderNumber, order.OrderDate, order.Total);
     }
-    //Tiny helper to generate a ordernumber. 
+
+    //Tiny helpers to generate a ordernumber. 
+    private async Task<string> GenerateUniqueOrderNumberAsync(CancellationToken ct)
+    {
+        for (var i = 0; i < 3; i++)
+        {
+            var candidate = GenerateOrderNumber();
+            var exists = await dbContext.Orders.AsNoTracking()
+                .AnyAsync(o => o.OrderNumber == candidate, ct);
+            if (!exists) return candidate;
+        }
+        return $"ORD-{DateTime.UtcNow:yyyyMMddHHmmssfff}-{Guid.NewGuid():N}".ToUpperInvariant();
+    }
     private static string GenerateOrderNumber()
     {
         var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmssfff");
