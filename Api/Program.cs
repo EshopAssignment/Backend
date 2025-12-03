@@ -35,6 +35,7 @@ builder.Services.AddDbContext<PallshoppenDbContext>(options =>
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IAdminOrderService, AdminOrderService>();
+builder.Services.AddScoped<IAdminProductService, AdminProductService>();
 
 //Register HostedService(Background seeder)
 builder.Services.AddHostedService<DatabaseInitializerHostedService>();

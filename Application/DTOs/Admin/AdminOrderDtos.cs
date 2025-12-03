@@ -5,6 +5,7 @@ namespace Application.DTOs.Admin;
 public sealed record AdminOrderListItemDto(
     int Id,
     string OrderNumber,
+    DateTime OrderDate,
     string CustomerName,
     string CustomerEmail,
     string OrderStatus,

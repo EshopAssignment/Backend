@@ -8,7 +8,7 @@ namespace Api.Controllers;
 
 [ApiController]
 [Route("api/admin/products")]
-public class AdminProductController(IProductService productService, IWebHostEnvironment env) : ControllerBase
+public class AdminProductController(IAdminProductService productService, IWebHostEnvironment env) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResult<ProductDto>))]
@@ -24,7 +24,7 @@ public class AdminProductController(IProductService productService, IWebHostEnvi
         [FromQuery] bool? isActive = null,
         CancellationToken ct = default)
     {
-        var result = await productService.GetAllAdminAsync(
+        var result = await productService.GetAllAsync(
             page, pageSize, query, sort, type, condition, minPrice, maxPrice, isActive, ct);
 
         return Ok(result);

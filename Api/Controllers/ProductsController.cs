@@ -14,7 +14,7 @@ public class ProductsController(IProductService productService) : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(IEnumerable<ProductDto>))]
     public async Task<IActionResult> GetAll(
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 4,
+        [FromQuery] int pageSize = 20,
         [FromQuery] string? query = null,
         [FromQuery] string? sort = null,
         [FromQuery] List<string>? type = null,

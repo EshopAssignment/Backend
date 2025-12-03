@@ -40,6 +40,7 @@ public class AdminOrderService(PallshoppenDbContext dbContext) : IAdminOrderServ
             .Select(o => new AdminOrderListItemDto(
                 o.Id,
                 o.OrderNumber,
+                o.OrderDate,
                 o.CustomerFirstName + " " + o.CustomerLastName,
                 o.CustomerEmail,
                 o.OrderStatus,
