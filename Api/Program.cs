@@ -27,7 +27,6 @@ builder.Services.AddOpenApi();
 
 
 //Configure DbContext(SQLServer)
-
 builder.Services.AddDbContext<PallshoppenDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
@@ -36,6 +35,7 @@ builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IAdminOrderService, AdminOrderService>();
 builder.Services.AddScoped<IAdminProductService, AdminProductService>();
+builder.Services.AddScoped<IInventoryService, InventoryService>();
 
 //Register HostedService(Background seeder)
 builder.Services.AddHostedService<DatabaseInitializerHostedService>();
@@ -50,7 +50,7 @@ app.MapOpenApi();
 app.MapScalarApiReference(options =>
 {
     options.Title = "Pallshop API";
-    options.Theme = ScalarTheme.Moon;
+    options.Theme = ScalarTheme.BluePlanet;
 }).ExcludeFromDescription();
 
 app.MapGet("/", () => Results.Redirect("/scalar"))
