@@ -86,9 +86,23 @@ public class OrderService(PallshoppenDbContext dbContext) : IOrderService
         order.Total = Math.Round(order.ProductsTotal + order.ShippingCost, 2, MidpointRounding.AwayFromZero);
         order.OrderItems = orderItems;
 
+        await using var tx = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        foreach (var g in lines)
+        {
+            var affected = await dbContext.Database.ExecuteSqlRawAsync(
+                "UPDATE Products SET OnHand = OnHand - {0} WHERE Id = {1} AND (OnHand - Reserved) >= {0}",
+                [g.Quantity, g.ProductId], cancellationToken);
+
+            if (affected == 0)
+            {
+                await tx.RollbackAsync(cancellationToken);
+                throw new InvalidOperationException($"Insufficient stock for product id {g.ProductId}.");
+            }
+        }
         dbContext.Orders.Add(order);
         await dbContext.SaveChangesAsync(cancellationToken);
-
+        await tx.CommitAsync(cancellationToken);
         return new OrderCreatedDto(
             order.Id,
             order.OrderNumber,
@@ -99,13 +113,12 @@ public class OrderService(PallshoppenDbContext dbContext) : IOrderService
     public async Task<OrderCreatedDto?> GetOrderByIdAsync(int id, CancellationToken ct)
     {
         var order = await dbContext.Orders
-                  .AsNoTracking()
-                  .FirstOrDefaultAsync(o => o.Id == id, ct);
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(o => o.Id == id, ct);
 
         if (order is null) return null;
 
-        return new OrderCreatedDto(
-            order.Id, order.OrderNumber, order.OrderDate, order.Total);
+        return new OrderCreatedDto(order.Id, order.OrderNumber, order.OrderDate, order.Total);
     }
 
     //Tiny helpers to generate a ordernumber. 

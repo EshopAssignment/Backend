@@ -2,14 +2,23 @@
 
 public sealed record ProductDto
 (
-     int Id,
-     string Name,
-     string Description,
-     string PalletType,
-     string Condition,
-     decimal Price,
-     int StockQuantity,
-     string ImgUrl,
-     bool IsActive
+    int Id,
+    string Name,
+    string Description,
+    string ImgUrl,
+
+    decimal PriceExVat,
+
+    string PalletType,     
+    string Condition,      
+    string StockStatus,    
+
+    int OnHand,
+    int Reserved,
+    int Available,
+
+    bool IsActive,
+    string? Sku,
+    string? Slug
 );
 

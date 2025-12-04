@@ -1,10 +1,8 @@
-﻿using System;
-using Application.DTOs.Admin;
+﻿
 using Application.DTOs.Product;
 using Application.Interfaces;
 using Domain.Entities;
 using Domain.Enums;
-using Infrastructure.Migrations;
 using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,18 +16,22 @@ public class ProductService(PallshoppenDbContext dbContext) : IProductService
         if (Enum.TryParse<TEnum>(value, true, out var parsed)) return parsed;
         throw new ArgumentException($"Inavlid value '{value}' for {typeof(TEnum).Name}", paramName);
     }
-    private static int Available(Product p) => Math.Max(0, p.OnHand - p.Reserved);
     private static ProductDto ToDto(Product p) =>
         new(
-            p.Id,
-            p.Name,
-            p.Description,
-            p.PalletType.ToString(),
-            p.Condition.ToString(),
-            p.PriceExVat,
-            Available(p),
-            p.ImgUrl,
-            p.IsActive
+        p.Id,
+        p.Name,
+        p.Description,
+        p.ImgUrl,
+        p.PriceExVat,
+        p.PalletType.ToString(),
+        p.Condition.ToString(),
+        p.StockStatus.ToString(),
+        p.OnHand,
+        p.Reserved,
+        p.Available,
+        p.IsActive,
+        p.Sku,
+        p.Slug
             );
 
 
@@ -80,12 +82,17 @@ public class ProductService(PallshoppenDbContext dbContext) : IProductService
                 p.Id,
                 p.Name,
                 p.Description,
+                p.ImgUrl,
+                p.PriceExVat,
                 p.PalletType.ToString(),
                 p.Condition.ToString(),
-                p.PriceExVat,
-                Math.Max(0, p.OnHand - p.Reserved),
-                p.ImgUrl,
-                p.IsActive))
+                p.StockStatus.ToString(),
+                p.OnHand,
+                p.Reserved,
+                p.Available,
+                p.IsActive,
+                p.Sku,
+                p.Slug))
             .ToListAsync(ct);
 
         return new PagedResult<ProductDto>

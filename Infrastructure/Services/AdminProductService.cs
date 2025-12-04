@@ -24,8 +24,20 @@ public class AdminProductService(PallshoppenDbContext dbContext) : IAdminProduct
         input.Trim().ToLowerInvariant().Replace("(", "").Replace(")", "").Replace("  ", " ").Replace(' ', '-');
     private static int Available(Product p) => Math.Max(0, p.OnHand - p.Reserved);
     private static ProductDto ToDto(Product p) =>
-        new(p.Id, p.Name, p.Description, p.PalletType.ToString(), p.Condition.ToString(),
-            p.PriceExVat, Available(p), p.ImgUrl, p.IsActive);
+        new(p.Id,
+                p.Name,
+                p.Description,
+                p.ImgUrl,
+                p.PriceExVat,
+                p.PalletType.ToString(),
+                p.Condition.ToString(),
+                p.StockStatus.ToString(),
+                p.OnHand,
+                p.Reserved,
+                p.Available,
+                p.IsActive,
+                p.Sku,
+                p.Slug);
 
     public async Task<PagedResult<ProductDto>> GetAllAsync(int page, int pageSize, string? query, string? sort,List<string>? type, List<string>? condition,decimal? minPrice, decimal? maxPrice, bool? isActive, CancellationToken ct)
     {
@@ -72,8 +84,20 @@ public class AdminProductService(PallshoppenDbContext dbContext) : IAdminProduct
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(p => new ProductDto(
-                p.Id, p.Name, p.Description, p.PalletType.ToString(), p.Condition.ToString(),
-                p.PriceExVat, Math.Max(0, p.OnHand - p.Reserved), p.ImgUrl, p.IsActive))
+                p.Id,
+                p.Name,
+                p.Description,
+                p.ImgUrl,
+                p.PriceExVat,
+                p.PalletType.ToString(),
+                p.Condition.ToString(),
+                p.StockStatus.ToString(),
+                p.OnHand,
+                p.Reserved,
+                p.Available,
+                p.IsActive,
+                p.Sku,
+                p.Slug))
             .ToListAsync(ct);
 
         return new PagedResult<ProductDto>
