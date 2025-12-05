@@ -1,6 +1,7 @@
 using Application.Interfaces;
-using Infrastructure.Services;
 using Infrastructure.Persistence;
+using Infrastructure.Services;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 
@@ -44,7 +45,7 @@ builder.Services.AddHostedService<DatabaseInitializerHostedService>();
 
 var app = builder.Build();
 
-app.MapOpenApi();
+app.MapOpenApi("/openapi.json");
 
 //Scalar API Reference
 app.MapScalarApiReference(options =>

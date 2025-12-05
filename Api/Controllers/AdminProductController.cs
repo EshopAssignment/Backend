@@ -29,32 +29,28 @@ public class AdminProductController(IAdminProductService productService, IWebHos
 
         return Ok(result);
     }
-
-
-    [HttpGet("{id:int}", Name = "GetProductById_AdminEcho")]
+    [HttpGet("{id:int}", Name = "GetProductById_Admin")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ProductDto))]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(int id, CancellationToken ct)
     {
         var dto = await productService.GetByIdAsync(id, ct);
         return dto is null ? NotFound() : Ok(dto);
     }
-
-
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] AdminCreateProductRequestDto req, CancellationToken ct = default)
     {
         var dto = await productService.CreateAsync(req, ct);
-        return CreatedAtRoute("GetProductById_AdminEcho", new { id = dto.Id }, dto);
+        return CreatedAtRoute("GetProductById_Admin", new { id = dto.Id }, dto);
     }
-
-
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, [FromBody] AdminUpdateProductRequestDto req, CancellationToken ct = default)
     {
         var updated = await productService.UpdateAsync(id, req, ct);
-        return updated is null ? NotFound() : Ok(updated); ;
+        return Ok(updated);
     }
     [HttpPut("{id:int}/image")]
-    public async Task<IActionResult> UploadImage(int id, IFormFile file, CancellationToken ct)
+    public async Task<IActionResult> UploadImage(int id,[FromForm] IFormFile file, CancellationToken ct)
     {
         var prod = await productService.GetByIdAsync(id, ct);
         if (prod is null)return NotFound();
@@ -75,13 +71,8 @@ public class AdminProductController(IAdminProductService productService, IWebHos
 
         return Ok(new { imgUrl = url });
     }
-
     [HttpPatch("{id:int}/activate")]
-    public async Task<IActionResult> ToggleActive(
-        int id,
-        [FromBody] ToggleActiveRequest? body,        
-        [FromQuery] bool? isActive,                  
-        CancellationToken ct = default)
+    public async Task<IActionResult> ToggleActive(int id,[FromBody] ToggleActiveRequest? body,[FromQuery] bool? isActive,CancellationToken ct = default) 
     {
         var value = body?.IsActive ?? isActive;
         if (value is null)
@@ -90,7 +81,4 @@ public class AdminProductController(IAdminProductService productService, IWebHos
         var ok = await productService.SetActiveAsync(id, value.Value, ct);
         return ok ? NoContent() : NotFound();
     }
-
-
-
 }

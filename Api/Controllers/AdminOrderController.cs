@@ -2,7 +2,6 @@
 using Application.DTOs.Product;
 using Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
 
 namespace Api.Controllers;
 
@@ -28,9 +27,9 @@ public class AdminOrderController(IAdminOrderService adminOrderService) : Contro
 
 
     [HttpGet("{id:int}")]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResult<AdminOrderListItemDto>))]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResult<AdminOrderDetailsDto>))]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetById(int id, CancellationToken ct)
+    public async Task<ActionResult<AdminOrderDetailsDto>> GetById(int id, CancellationToken ct = default)
     {
         var res = await adminOrderService.GetByIdAsync(id, ct);
         return res is null ? NotFound() : Ok(res);
@@ -40,7 +39,7 @@ public class AdminOrderController(IAdminOrderService adminOrderService) : Contro
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> UpdateStatus(int id, [FromBody] AdminUpdateOrderStatusRequest body, CancellationToken ct)
+    public async Task<IActionResult> UpdateStatus(int id, [FromBody] AdminUpdateOrderStatusRequest body, CancellationToken ct = default)
     {
         if (string.IsNullOrEmpty(body.OrderStatus))
             return BadRequest("Orderstatus is required");

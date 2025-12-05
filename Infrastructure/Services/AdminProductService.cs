@@ -22,7 +22,6 @@ public class AdminProductService(PallshoppenDbContext dbContext) : IAdminProduct
     }
     private static string Slugify(string input) =>
         input.Trim().ToLowerInvariant().Replace("(", "").Replace(")", "").Replace("  ", " ").Replace(' ', '-');
-    private static int Available(Product p) => Math.Max(0, p.OnHand - p.Reserved);
     private static ProductDto ToDto(Product p) =>
         new(p.Id,
                 p.Name,
@@ -38,7 +37,6 @@ public class AdminProductService(PallshoppenDbContext dbContext) : IAdminProduct
                 p.IsActive,
                 p.Sku,
                 p.Slug);
-
     public async Task<PagedResult<ProductDto>> GetAllAsync(int page, int pageSize, string? query, string? sort,List<string>? type, List<string>? condition,decimal? minPrice, decimal? maxPrice, bool? isActive, CancellationToken ct)
     {
         var q = dbContext.Products.AsNoTracking().AsQueryable();
@@ -118,8 +116,8 @@ public class AdminProductService(PallshoppenDbContext dbContext) : IAdminProduct
             throw new ArgumentNullException("Name is Required", nameof(name));
         }
 
-        if (req.Price < 0) throw new ArgumentOutOfRangeException(nameof(req.Price), "pris must be above 0 ");
-        if (req.StockQuantity < 0) throw new ArgumentOutOfRangeException(nameof(req.StockQuantity), "Stock måste vara 1+");
+        if (req.PriceExVat < 0) throw new ArgumentOutOfRangeException(nameof(req.PriceExVat), "pris must be above 0 ");
+        if (req.OnHand < 0) throw new ArgumentOutOfRangeException(nameof(req.OnHand), "Stock måste vara 1+");
 
         if (await dbContext.Products.AnyAsync(p => p.Name == name, ct))
             throw new InvalidOperationException("Product already exist");
@@ -130,8 +128,8 @@ public class AdminProductService(PallshoppenDbContext dbContext) : IAdminProduct
             Description = req.Description.Trim() ?? string.Empty,
             PalletType = ParseEnum<ProductType>(req.PalletType, nameof(req.PalletType)),
             Condition = ParseEnum<ProductCondition>(req.Condition, nameof(req.Condition)),
-            PriceExVat = Math.Round(req.Price, 2),
-            OnHand = req.StockQuantity,
+            PriceExVat = Math.Round(req.PriceExVat, 2),
+            OnHand = req.OnHand,
             Reserved = 0,
             ImgUrl = string.Empty,
             IsActive = req.IsActive,
@@ -149,8 +147,8 @@ public class AdminProductService(PallshoppenDbContext dbContext) : IAdminProduct
         ArgumentNullException.ThrowIfNull(req);
         var name = req.Name?.Trim();
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Namn is required", nameof(req));
-        if (req.Price < 0) throw new ArgumentOutOfRangeException(nameof(req.Price), "pris must be above 0 ");
-        if (req.StockQuantity < 0) throw new ArgumentOutOfRangeException(nameof(req.StockQuantity), "Stock måste vara 1+");
+        if (req.PriceExVat < 0) throw new ArgumentOutOfRangeException(nameof(req.PriceExVat), "pris must be above 0 ");
+        if (req.OnHand < 0) throw new ArgumentOutOfRangeException(nameof(req.OnHand), "Stock måste vara 1+");
 
         var entity = await dbContext.Products.FirstOrDefaultAsync(p => p.Id == id, ct)
             ?? throw new KeyNotFoundException($"Produkct {id} does not exist");
@@ -159,8 +157,8 @@ public class AdminProductService(PallshoppenDbContext dbContext) : IAdminProduct
         entity.Description = req.Description.Trim() ?? string.Empty;
         entity.PalletType = ParseEnum<ProductType>(req.PalletType, nameof(req.PalletType));
         entity.Condition = ParseEnum<ProductCondition>(req.Condition, nameof(req.Condition));
-        entity.PriceExVat = Math.Round(req.Price, 2);
-        entity.OnHand = req.StockQuantity;
+        entity.PriceExVat = Math.Round(req.PriceExVat, 2);
+        entity.OnHand = req.OnHand;
         entity.Reserved = 0;
         entity.ImgUrl = string.Empty;
         entity.IsActive = req.IsActive;
@@ -190,7 +188,7 @@ public class AdminProductService(PallshoppenDbContext dbContext) : IAdminProduct
     public async Task<ProductDto?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
         var p = await dbContext.Products.AsNoTracking()
-            .FirstOrDefaultAsync(p => p.IsActive && p.Id == id, cancellationToken);
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
         return p is null ? null : ToDto(p);
     }
