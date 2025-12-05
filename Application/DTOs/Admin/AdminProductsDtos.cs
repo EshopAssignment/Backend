@@ -2,14 +2,12 @@
 namespace Application.DTOs.Admin;
 
 public record AdminCreateProductRequestDto(
-
-    int Id,
     string Name,
     string Description,
     string PalletType,
     string Condition,
-    decimal Price,
-    int StockQuantity,
+    decimal PriceExVat,
+    int OnHand,
     string ImgUrl,
     bool IsActive
 );
@@ -20,8 +18,8 @@ public record AdminUpdateProductRequestDto(
     string Description,
     string PalletType,
     string Condition,
-    decimal Price,
-    int StockQuantity,
+    decimal PriceExVat,
+    int OnHand,
     string ImgUrl,
     bool IsActive
 );
