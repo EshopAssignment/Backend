@@ -52,6 +52,7 @@ app.MapScalarApiReference(options =>
 {
     options.Title = "Pallshop API";
     options.Theme = ScalarTheme.BluePlanet;
+    options.WithOpenApiRoutePattern("/openapi.json");
 }).ExcludeFromDescription();
 
 app.MapGet("/", () => Results.Redirect("/scalar"))

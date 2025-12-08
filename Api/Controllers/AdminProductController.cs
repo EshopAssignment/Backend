@@ -1,7 +1,10 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.ComponentModel;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using Application.DTOs.Admin;
 using Application.DTOs.Product;
 using Application.Interfaces;
+using Domain.Enums;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controllers;
@@ -80,5 +83,32 @@ public class AdminProductController(IAdminProductService productService, IWebHos
 
         var ok = await productService.SetActiveAsync(id, value.Value, ct);
         return ok ? NoContent() : NotFound();
+    }
+
+    [HttpGet("options")]
+    public IActionResult GetOptions()
+    {
+        return Ok(new
+        {
+            productTypes = GetEnumOptions<ProductType>(),
+            productConditions = GetEnumOptions<ProductCondition>()
+        });
+    }
+
+    private static IEnumerable<object> GetEnumOptions<T>() where T : struct, Enum
+    {
+        foreach (var v in Enum.GetValues<T>().Cast<T>())
+        {
+            var name = v.ToString(); ;
+            var label = typeof(T).GetMember(name)
+                .First()
+                .GetCustomAttribute<DescriptionAttribute>()?.Description ?? name;
+            yield return new
+            {
+                value = name,
+                label,
+                intValue = Convert.ToInt32(v)
+            };
+        }
     }
 }

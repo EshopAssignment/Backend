@@ -1,9 +1,11 @@
 ﻿
+using System.ComponentModel;
+
 namespace Domain.Enums;
 
 public enum ProductCondition
 {
-    New = 1, 
-    Used= 2,
-    Refurbished = 3
+    [Description("Ny")] New = 1,
+    [Description("Begangnad")] Used = 2,
+    [Description("Upprustad")] Refurbished = 3
 }
