@@ -1,15 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿
+
+using System.ComponentModel;
 
 namespace Domain.Enums;
 
 public enum ProductType
 {
-    EuroPallet = 1,
-    HalfPallet = 2,
-    IndustrialPallet = 3,
-    CustomPallet = 4,
-    SpecialPallet = 5,
-    Other = 6
+    [Description("EURO-pall")] EuroPallet = 1,
+    [Description("Halv-pall")] HalfPallet = 2,
+    [Description("Industri-pall")] IndustrialPallet = 3,
+    [Description("Specialmåttad")] CustomPallet = 4,
+    [Description("Speciall-pall")] SpecialPallet = 5,
+    [Description("Övrigt")] Other = 6
 }
