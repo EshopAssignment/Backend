@@ -8,7 +8,7 @@ namespace Application.DTOs.Product;
 public sealed record ProductSuggestionDto(
     int Id,
     string Name,
-    decimal Price,
+    decimal PriceExVat,
     string ImgUrl,
     string? Slug,
     string? Sku
