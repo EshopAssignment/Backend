@@ -13,6 +13,7 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        modelBuilder.HasDefaultSchema("core");
 
         modelBuilder.Entity<Product>(entity =>
         {
