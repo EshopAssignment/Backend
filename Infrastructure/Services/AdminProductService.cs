@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using Application.DTOs.Admin;
+﻿using Application.DTOs.Admin;
 using Application.DTOs.Product;
 using Application.Interfaces;
 using Domain.Entities;
