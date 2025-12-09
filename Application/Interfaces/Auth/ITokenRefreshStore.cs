@@ -1,5 +1,4 @@
-﻿
-namespace Application.Interfaces.Auth;
+﻿namespace Application.Interfaces.Auth;
 
 public interface ITokenRefreshStore
 {

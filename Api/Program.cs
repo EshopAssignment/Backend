@@ -4,7 +4,9 @@ using Application.Interfaces.Auth;
 using Domain.Entities.Identity;
 using Infrastructure.Auth;
 using Infrastructure.Persistence;
+using Infrastructure.Seed;
 using Infrastructure.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -70,35 +72,49 @@ builder.Services.AddMemoryCache();
 builder.Services.AddScoped<ITokenRefreshStore, TokenRefreshStore>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 
-builder.Services.AddAuthentication()
-    .AddJwtBearer(o =>
+builder.Services.AddAuthentication(o =>
+{
+    o.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    o.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(o =>
+{
+    var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>()!;
+    var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key));
+
+    o.TokenValidationParameters = new()
     {
-        var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>()!;
-        o.TokenValidationParameters = new()
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwt.Issuer,
+        ValidAudience = jwt.Audience,
+        IssuerSigningKey = key,
+        ClockSkew = TimeSpan.FromSeconds(30)
+    };
+
+    o.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = ctx =>
         {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = jwt.Issuer,
-            ValidAudience = jwt.Audience,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key)),
-            ClockSkew = TimeSpan.FromSeconds(30)
-        };
-        o.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+            var access = ctx.HttpContext.Request.Cookies["access_token"];
+            if (!string.IsNullOrEmpty(access)) ctx.Token = access;
+            return Task.CompletedTask;
+        },
+        OnAuthenticationFailed = ctx =>
         {
-            OnMessageReceived = ctx =>
-            {
-                var access = ctx.HttpContext.Request.Cookies["access_token"];
-                if (!string.IsNullOrEmpty(access)) ctx.Token = access;
-                return Task.CompletedTask;
-            }
-        };
-    });
+            return Task.CompletedTask;
+        }
+    };
+});
+
+builder.Services.AddAuthorization();
 
 
 var app = builder.Build();
 
+await IdentitySeeder.SeedAsync(app.Services);
 app.MapOpenApi("/openapi.json");
 
 //Scalar API Reference
@@ -120,7 +136,7 @@ app.UseRouting();
 app.UseCors("AllowFrontend");
 
 
-app.UseAuthentication(); 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

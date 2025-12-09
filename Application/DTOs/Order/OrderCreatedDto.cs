@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Application.DTOs.Order;
+﻿namespace Application.DTOs.Order;
 
 public sealed record OrderCreatedDto(
     int OrderId,

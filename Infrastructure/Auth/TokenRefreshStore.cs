@@ -1,5 +1,4 @@
-﻿
-using Application.Interfaces.Auth;
+﻿using Application.Interfaces.Auth;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace Infrastructure.Auth;

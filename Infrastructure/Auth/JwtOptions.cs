@@ -1,6 +1,4 @@
-﻿
-
-namespace Infrastructure.Auth;
+﻿namespace Infrastructure.Auth;
 
 public sealed record JwtOptions
 {

@@ -1,5 +1,4 @@
-﻿using System.Security.Claims;
-using Application.DTOs.Auth;
+﻿using Application.DTOs.Auth;
 using Application.Interfaces.Auth;
 using Domain.Entities.Identity;
 using Microsoft.AspNetCore.Authorization;
