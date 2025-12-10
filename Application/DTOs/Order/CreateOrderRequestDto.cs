@@ -5,9 +5,8 @@ public sealed record CreateOrderRequestDto(
     string CustomerLastName,
     string CustomerEmail,
     string CustomerPhoneNumber,
-    string ShippingCity,
-    string ShippingStreet,
-    string ShippingPostalCode,
-    string ShippingCountry,
-    IReadOnlyList<CreateOrderItemRequestDto> Items
+    ShippingAddressDto ShippingAddress,
+    IReadOnlyList<CreateOrderItemRequestDto> Items,
+    string Currency = "SEK",
+    decimal? ShippingCost = null
     );

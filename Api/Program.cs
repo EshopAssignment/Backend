@@ -1,4 +1,5 @@
 using System.Text;
+using Application.Assemblers;
 using Application.Interfaces;
 using Application.Interfaces.Auth;
 using Domain.Entities.Identity;
@@ -24,7 +25,7 @@ builder.Services.AddCors(o =>
         .AllowCredentials()
     )
 );
-
+//Add Controllers & OpenApi
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
@@ -44,6 +45,7 @@ builder.Services.AddDbContext<AuthDbContext>(options =>
             x.MigrationsHistoryTable("__EFMigrationsHistory", "auth");
         })); //jaja byt sen jag är inte rik. 
 
+//Identity Configuration
 builder.Services.AddIdentity<User, AppRole>(options =>
     {
         options.Password.RequireDigit = true;
@@ -55,6 +57,8 @@ builder.Services.AddIdentity<User, AppRole>(options =>
     })
     .AddEntityFrameworkStores<AuthDbContext>()
     .AddDefaultTokenProviders();
+//Speciall IAppDbContext registration
+builder.Services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<PallshoppenDbContext>());
 
 //Services
 builder.Services.AddScoped<IProductService, ProductService>();
@@ -65,13 +69,15 @@ builder.Services.AddScoped<IInventoryService, InventoryService>();
 
 //Register HostedService(Background seeder)
 builder.Services.AddHostedService<DatabaseInitializerHostedService>();
-//Token Service
 
+//Token Service
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<ITokenRefreshStore, TokenRefreshStore>();
 builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<OrderAssembler>();
 
+//Authentication & Authorization
 builder.Services.AddAuthentication(o =>
 {
     o.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;

@@ -16,6 +16,7 @@ public class Product
 
 
     public decimal PriceExVat { get; set; }
+    public decimal VatRate { get; set; }
     public ProductCondition Condition { get; set; }
     public ProductType PalletType { get; set; }
 

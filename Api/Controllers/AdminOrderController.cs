@@ -41,10 +41,8 @@ public class AdminOrderController(IAdminOrderService adminOrderService) : Contro
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UpdateStatus(int id, [FromBody] AdminUpdateOrderStatusRequest body, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(body.OrderStatus))
-            return BadRequest("Orderstatus is required");
 
-        var ok = await adminOrderService.UpdateStatusAsync(id, body.OrderStatus, ct);
+        var ok = await adminOrderService.UpdateStatusAsync(id, body.OrderStatus.ToString(), ct);
         return ok ? NoContent() : NotFound();
     }
 
