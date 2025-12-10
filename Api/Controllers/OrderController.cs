@@ -17,10 +17,16 @@ public class OrderController(IOrderService orderService) : ControllerBase
             return BadRequest("Order must contain atleast one item");
         if (request.Items.Any(i => i.Quantity <= 0))
             return BadRequest("item quantity must be >= 1");
+        if (request.ShippingAddress is null ||
+            string.IsNullOrWhiteSpace(request.ShippingAddress.Street) ||
+            string.IsNullOrWhiteSpace(request.ShippingAddress.City) ||
+            string.IsNullOrWhiteSpace(request.ShippingAddress.PostalCode) ||
+            string.IsNullOrWhiteSpace(request.ShippingAddress.Country))
+            return BadRequest("Shipping address is required.");
 
         try
         {
-            var result = await orderService.CreateOrderAsync(request, cancellationToken);
+            var result = await orderService.CreateAsync(request, cancellationToken);
 
             return CreatedAtAction(
                 nameof(GetById),
@@ -29,13 +35,14 @@ public class OrderController(IOrderService orderService) : ControllerBase
 
             );
         }
+
         catch(InvalidOperationException ex)
         {
+            Console.Write(ex.Message);
             return BadRequest(ex.Message);
         }
        
     }
-
 
     [HttpGet("{id:int}")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(OrderCreatedDto))]
@@ -43,10 +50,18 @@ public class OrderController(IOrderService orderService) : ControllerBase
     public async Task<IActionResult> GetById(int id, CancellationToken cancellationToken = default)
     {
         if (id <= 0) return NotFound();
-
-        var dto = await orderService.GetOrderByIdAsync(id, cancellationToken);
+        var dto = await orderService.GetByIdAsync(id, cancellationToken);
             if (dto is null) return NotFound();
-
         return Ok(dto);
+    }
+
+    [HttpGet("by-number/{orderNumber}")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(OrderCreatedDto))]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetByNumber(string orderNumber, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(orderNumber)) return NotFound();
+        var dto = await orderService.GetByNumberAsync(orderNumber, ct);
+        return dto is null ? NotFound() : Ok(dto);
     }
 }

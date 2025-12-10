@@ -1,8 +1,16 @@
-﻿namespace Application.DTOs.Order;
+﻿using Domain.Enums;
+
+namespace Application.DTOs.Order;
 
 public sealed record OrderCreatedDto(
     int OrderId,
     string OrderNumber,
-    DateTime OrderDate,
-    decimal Total
+    DateTime CreatedAtUtc,
+    string Currency,
+    decimal ProductsSubtotal,
+    decimal ShippingCost,
+    decimal TaxTotal,
+    decimal GrandTotal,
+    OrderStatus OrderStatus,
+    PaymentStatus PaymentStatus
     );

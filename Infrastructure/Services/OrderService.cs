@@ -1,4 +1,5 @@
 ﻿
+using Application.Assemblers;
 using Application.DTOs.Order;
 using Application.Interfaces;
 using Domain.Entities;
@@ -7,136 +8,107 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Services;
 
-public class OrderService(PallshoppenDbContext dbContext) : IOrderService
+public class OrderService(PallshoppenDbContext dbContext, OrderAssembler assembler, IInventoryService inventoryService) : IOrderService
 {
-    public async Task<OrderCreatedDto> CreateOrderAsync(CreateOrderRequestDto request, CancellationToken cancellationToken = default)
+ 
+    //Order Tasks
+    public async Task<OrderCreatedDto> CreateAsync(CreateOrderRequestDto dto, CancellationToken ct)
     {
-        if (request.Items is null || request.Items.Count == 0)
-        {
-            throw new InvalidOperationException("Order must contain one item");
-        }
+        if (dto.Items is null || dto.Items.Count == 0)
+            throw new InvalidOperationException("Must alteast have one item");
 
+        var orderNumber = await GenerateUniqueOrderNumberAsync(ct);
 
-        var lines = request.Items
-            .GroupBy(i => i.ProductId)
-            .Select(g => new { ProductId = g.Key, Quantity = g.Sum(x => x.Quantity) })
-            .ToList();
+        var order = await assembler.FromDtoAsync(dto, orderNumber, ct);
 
-        if (lines.Any(l => l.Quantity <= 0))
-            throw new ArgumentOutOfRangeException(nameof(request.Items), "Quantity must be above 0");
-
-        var productIds = lines.Select(l => l.ProductId).ToList();
-
-
-        var products = await dbContext.Products
-            .Where(p => productIds.Contains(p.Id) && p.IsActive)
-            .ToListAsync(cancellationToken);
-
-        if (products.Count != productIds.Count)
-            throw new InvalidOperationException("One or more products a invalid.");
-
-        foreach (var l in lines)
-        {
-            var p = products.First(x => x.Id == l.ProductId);
-            var available = Math.Max(0, p.OnHand - p.Reserved);
-            if (l.Quantity > available)
-                throw new InvalidOperationException($"Insufficient stock for product {p.Name} (id {p.Id}).");
-        }
-
-        var order = new Order
-        {
-            OrderNumber = await GenerateUniqueOrderNumberAsync(cancellationToken),
-            OrderDate = DateTime.UtcNow,
-            CustomerFirstName = request.CustomerFirstName,
-            CustomerLastName = request.CustomerLastName,
-            CustomerEmail = request.CustomerEmail,
-            CustomerPhoneNumber = request.CustomerPhoneNumber,
-            ShippingStreet = request.ShippingStreet,
-            ShippingCity = request.ShippingCity,
-            ShippingPostalCode = request.ShippingPostalCode,
-            ShippingCountry = request.ShippingCountry,
-            OrderStatus = "New"
-        };
-
-
-        decimal productsTotal = 0m;
-        var orderItems = new List<OrderItem>(lines.Count);
-
-        foreach (var l in lines)
-        {
-            var p = products.First(x => x.Id == l.ProductId);
-
-            var unitPrice = p.PriceExVat;
-            var lineTotal = Math.Round(unitPrice * l.Quantity, 2, MidpointRounding.AwayFromZero);
-
-            orderItems.Add(new OrderItem
-            {
-                ProductId = p.Id,
-                ProductName = p.Name,
-                UnitPrice = unitPrice,
-                Quantity = l.Quantity,
-                LineTotal = lineTotal,
-                Order = order
-            });
-            productsTotal += lineTotal;
-        }
-
-        order.ProductsTotal = Math.Round(productsTotal, 2, MidpointRounding.AwayFromZero);
-        order.ShippingCost = 0m;
-        order.Total = Math.Round(order.ProductsTotal + order.ShippingCost, 2, MidpointRounding.AwayFromZero);
-        order.OrderItems = orderItems;
-
-        await using var tx = await dbContext.Database.BeginTransactionAsync(cancellationToken);
-
-        foreach (var g in lines)
-        {
-            var affected = await dbContext.Database.ExecuteSqlRawAsync(
-                "UPDATE Products SET OnHand = OnHand - {0} WHERE Id = {1} AND (OnHand - Reserved) >= {0}",
-                [g.Quantity, g.ProductId], cancellationToken);
-
-            if (affected == 0)
-            {
-                await tx.RollbackAsync(cancellationToken);
-                throw new InvalidOperationException($"Insufficient stock for product id {g.ProductId}.");
-            }
-        }
         dbContext.Orders.Add(order);
-        await dbContext.SaveChangesAsync(cancellationToken);
-        await tx.CommitAsync(cancellationToken);
-        return new OrderCreatedDto(
-            order.Id,
-            order.OrderNumber,
-            order.OrderDate,
-            order.Total
-        );
+                await dbContext.SaveChangesAsync(ct);
+
+        return ToCreatedDto(order);
     }
-    public async Task<OrderCreatedDto?> GetOrderByIdAsync(int id, CancellationToken ct)
+    public async Task<OrderCreatedDto?> GetByIdAsync(int id, CancellationToken ct)
     {
-        var order = await dbContext.Orders
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(o => o.Id == id, ct);
-
-        if (order is null) return null;
-
-        return new OrderCreatedDto(order.Id, order.OrderNumber, order.OrderDate, order.Total);
+        var o = await dbContext.Orders.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
+        return o is null ? null : ToCreatedDto(o);
+    }
+    public async Task<OrderCreatedDto?> GetByNumberAsync(string orderNumber, CancellationToken ct)
+    {
+        var o = await dbContext.Orders.AsNoTracking().FirstOrDefaultAsync(x => x.OrderNumber == orderNumber, ct);
+        return o is null ? null : ToCreatedDto(o);
     }
 
-    //Tiny helpers to generate a ordernumber. 
+    //Stripe payment status updates
+    public async Task<bool> MarkPaymentAuthorizedAsync(string orderNumber, string paymentIntentId, string? latestChargeId, string? methodType, decimal amount,string cartId, CancellationToken ct)
+    {
+        var order = await dbContext.Orders.FirstOrDefaultAsync(o => o.OrderNumber == orderNumber, ct);
+        if (order is null) return false;
+        var (ok, error) = await inventoryService.ConfirmOrderFromCartAsync(cartId, paymentIntentId, ct);
+        if (!ok)
+        {
+            order.Payment.MarkFailed();
+            order.MarkFailed();
+            await dbContext.SaveChangesAsync(ct);
+            return false;
+        }
+
+        order.Payment.MarkAuthorized(paymentIntentId, latestChargeId, amount, methodType, DateTime.UtcNow);
+        order.MarkConfirmed();
+
+        await dbContext.SaveChangesAsync(ct);
+        return true;
+    }
+    public async Task<bool> MarkPaymentFailedAsync(string orderNumber, CancellationToken ct)
+    {
+        var order = await dbContext.Orders.FirstOrDefaultAsync(o => o.OrderNumber == orderNumber, ct);
+        if (order is null) return false;
+
+        order.Payment.MarkFailed();
+        order.MarkFailed();
+        await dbContext.SaveChangesAsync(ct);
+        return true;
+    }
+    public async Task<bool> MarkRefundedAsync(string orderNumber, decimal amount, CancellationToken ct)
+    {
+        var oder = await dbContext.Orders.FirstOrDefaultAsync(o => o.OrderNumber == orderNumber, ct);
+        if (oder is null) return false;
+
+        oder.Payment.MarkRefunded(amount, DateTime.UtcNow);
+        oder.MarkRefunded();
+
+        await dbContext.SaveChangesAsync(ct);
+        return true;
+    }
+    
+    //helpers.
     private async Task<string> GenerateUniqueOrderNumberAsync(CancellationToken ct)
     {
         for (var i = 0; i < 3; i++)
         {
             var candidate = GenerateOrderNumber();
-            var exists = await dbContext.Orders.AsNoTracking()
-                .AnyAsync(o => o.OrderNumber == candidate, ct);
+            var exists = await dbContext.Orders.AsNoTracking().AnyAsync(o => o.OrderNumber == candidate, ct);
             if (!exists) return candidate;
         }
         return $"ORD-{DateTime.UtcNow:yyyyMMddHHmmssfff}-{Guid.NewGuid():N}".ToUpperInvariant();
     }
     private static string GenerateOrderNumber()
     {
-        var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmssfff");
-        var randomSuffix = Random.Shared.Next(1000, 9999);
-        return $"ORD-{timestamp}-{randomSuffix}";
+        var ts = DateTime.UtcNow.ToString("yyyyMMddHHmmssfff");
+        var rnd = Random.Shared.Next(1000, 9999);
+        return $"ORD-{ts}-{rnd}";
     }
+
+    //move to factory later. 
+    private static OrderCreatedDto ToCreatedDto(Order o) =>
+    new(
+        o.Id,
+        o.OrderNumber,
+        o.CreatedAt,
+        o.Currency,
+        o.ProductsSubtotal,
+        o.ShippingCost,
+        o.TaxTotal,
+        o.GrandTotal,
+        o.OrderStatus,
+        o.Payment.Status
+    );
 }

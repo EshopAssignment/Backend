@@ -2,6 +2,7 @@
 using Application.DTOs.Admin;
 using Application.DTOs.Product;
 using Application.Interfaces;
+using Domain.Enums;
 using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,7 +12,7 @@ public class AdminOrderService(PallshoppenDbContext dbContext) : IAdminOrderServ
 {
     public async Task<PagedResult<AdminOrderListItemDto>> GetAllAsync(int page, int pageSize, string? query, string? status, DateTime? from, DateTime? to, CancellationToken ct)
     {
-        var q = dbContext.Orders.AsQueryable();
+        var q = dbContext.Orders.AsNoTracking().AsQueryable();
 
         if(!string.IsNullOrWhiteSpace(query))
         {
@@ -20,33 +21,38 @@ public class AdminOrderService(PallshoppenDbContext dbContext) : IAdminOrderServ
             o.OrderNumber.Contains(term) ||
             o.CustomerFirstName.Contains(term) ||
             o.CustomerLastName.Contains(term) ||
-            o.CustomerEmail.Contains(term));
+            o.CustomerEmail.Contains(term) ||
+            o.CustomerPhoneNumber.Contains(term));
         }
 
-        if (!string.IsNullOrWhiteSpace(status))
+        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<OrderStatus>(status, ignoreCase:true, out var parsed))
         {
-            q = q.Where(o =>
-            o.OrderStatus == status);
+            q = q.Where(o => o.OrderStatus == parsed);
         }
 
-        if (from.HasValue) q = q.Where(o => o.OrderDate >= from.Value);
-        if (to.HasValue) q = q.Where(o => o.OrderDate  <= to.Value);
+        if(from.HasValue) q = q.Where(o => o.CreatedAt >= from.Value);
+        if(to.HasValue) q = q.Where(o => o.CreatedAt <= to.Value);
 
-        q = q.OrderByDescending(o => o.OrderDate).ThenByDescending(o => o.Id);
+        q = q.OrderByDescending(o => o.CreatedAt).ThenByDescending(o => o.Id);
 
         var total = await q.CountAsync(ct);
+
         var items = await q
-            .Skip((page -1) * pageSize).Take(pageSize)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(o => new AdminOrderListItemDto(
-                o.Id,
-                o.OrderNumber,
-                o.OrderDate,
-                o.CustomerFirstName + " " + o.CustomerLastName,
-                o.CustomerEmail,
-                o.OrderStatus,
-                o.Total
-                ))
+                Id: o.Id,
+                OrderNumber: o.OrderNumber,
+                CreatedAtUtc: o.CreatedAt,
+                CustomerName: o.CustomerFirstName + " " + o.CustomerLastName,
+                CustomerEmail: o.CustomerEmail,
+                OrderStatus: o.OrderStatus,
+                PaymentStatus: o.Payment.Status,
+                GrandTotal: o.GrandTotal,
+                PaymentMethod: o.Payment.PaymentMethodType ?? string.Empty 
+            ))
             .ToListAsync(ct);
+
         return new PagedResult<AdminOrderListItemDto>
         {
             Page = page,
@@ -62,47 +68,69 @@ public class AdminOrderService(PallshoppenDbContext dbContext) : IAdminOrderServ
         var o = await dbContext.Orders
             .AsNoTracking()
             .Include(x => x.OrderItems)
-            .FirstOrDefaultAsync(o => o.Id == id, ct);
+            .FirstOrDefaultAsync(x => x.Id == id, ct);
 
         if (o is null) return null;
 
         var items = o.OrderItems
             .OrderBy(i => i.Id)
             .Select(i => new AdminOrderItemDto(
-                i.ProductId,
-                i.ProductName,
-                i.UnitPrice,
-                i.Quantity,
-                i.LineTotal))
+                ProductId: i.ProductId,
+                Sku: i.Sku,
+                ProductName: i.ProductName,
+                UnitPrice: i.UnitPrice,
+                VatRate: i.VatRate,
+                Quantity: i.Quantity,
+                LineTotal: i.LineTotal))
             .ToList();
 
-        return new AdminOrderDetailsDto(
-                o.Id,
-                o.OrderNumber,
-                o.OrderDate,
-                o.CustomerFirstName,
-                o.CustomerLastName,
-                o.CustomerEmail,
-                o.CustomerPhoneNumber,
-                o.ShippingStreet,
-                o.ShippingPostalCode,
-                o.ShippingCity,
-                o.ShippingCountry,
-                o.OrderStatus,
-                o.ProductsTotal,
-                o.ShippingCost,
-                o.Total,
-                items
-            );
+        return new AdminOrderDetailsDto(Id: o.Id,
+            OrderNumber: o.OrderNumber,
+            CreatedAtUtc: o.CreatedAt,
+            CustomerFirstName: o.CustomerFirstName,
+            CustomerLastName: o.CustomerLastName,
+            CustomerEmail: o.CustomerEmail,
+            CustomerPhoneNumber: o.CustomerPhoneNumber,
+            ShippingStreet: o.ShippingAddress.Street,
+            ShippingPostalCode: o.ShippingAddress.PostalCode,
+            ShippingCity: o.ShippingAddress.City,
+            ShippingCountry: o.ShippingAddress.Country,
+            OrderStatus: o.OrderStatus,
+            PaymentStatus: o.Payment.Status,
+            PaymentMethod: o.Payment.PaymentMethodType ?? string.Empty,
+            PaymentIntentId: o.Payment.PaymentIntentId,
+            Currency: o.Currency,
+            ProductsSubtotal: o.ProductsSubtotal,
+            ShippingCost: o.ShippingCost,
+            TaxTotal: o.TaxTotal,
+            GrandTotal: o.GrandTotal,
+            Items: items);
+
     }
 
     public async Task<bool> UpdateStatusAsync(int id, string newStatus, CancellationToken ct)
     {
+        if (!Enum.TryParse<OrderStatus>(newStatus, ignoreCase: true, out var next))
+            return false;
+
         var o = await dbContext.Orders.FirstOrDefaultAsync(x => x.Id == id, ct);
         if (o is null) return false;
 
-        o.OrderStatus = newStatus;
-        await dbContext.SaveChangesAsync(ct);
+        switch(next)
+        {
+            case OrderStatus.Pending: o.MarkFailed(); o.MarkCancelled(); o.MarkConfirmed();
+                return false;
+            case OrderStatus.Processing: o.MarkProcessing(); break;
+            case OrderStatus.Shipped: o.MarkShipped(); break;
+            case OrderStatus.Completed: o.MarkCompleted(); break;
+            case OrderStatus.Cancelled: o.MarkCancelled(); break;
+            case OrderStatus.Confirmed: o.MarkConfirmed(); break;
+            case OrderStatus.Failed: o.MarkFailed(); break;
+            case OrderStatus.Refunded: o.MarkRefunded(); break;
+            default: return false;
+        }
+
+        await dbContext.SaveChangesAsync();
         return true;
-    } 
+    }
 }

@@ -23,6 +23,7 @@ public class DatabaseInitializerHostedService(IServiceProvider serviceProvider) 
         }
         catch (Exception ex)
         {
+            Console.WriteLine(ex);
             throw;
             //logger not implemented. 
         }
