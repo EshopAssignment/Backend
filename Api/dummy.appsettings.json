@@ -1,0 +1,26 @@
+﻿{
+  "ConnectionStrings": {
+    "DefaultConnection": "Data Source=(LocalDB)\\MSSQLLocalDB;AttachDbFilename=C:\\Users\\erika\\Desktop\\Consid\\DB\\Database.mdf;Integrated Security=True;Connect Timeout=30"
+    //"DefaultConnection": "Data Source=(LocalDB)\\MSSQLLocalDB;AttachDbFilename=C:\\Users\\ville\\Desktop\\Consid\\Db\\Database.mdf;Integrated Security=True;Connect Timeout=30"
+  },
+
+  "Jwt": {
+    "Issuer": "Pallshoppen",
+    "Audience": "Pallshoppen.Client",
+    "Key": "KESHPATTELS-LÖSENORD-9349ef9f-0f51-4cf0-b27f-19fe5934620c"
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft": "Warning",
+      "Microsoft.Hosting.Lifetime": "Information"
+    },
+    "Stripe": {
+      "PublishableKey": "m",
+      "SecretKey": "s",
+      "WebhookSecret": "w."
+    }
+
+  },
+  "AllowedHosts": "*"
+}

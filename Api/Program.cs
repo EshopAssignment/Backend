@@ -3,16 +3,20 @@ using Application.Assemblers;
 using Application.Interfaces;
 using Application.Interfaces.Auth;
 using Domain.Entities.Identity;
+using Domain.Stripe;
 using Infrastructure.Auth;
 using Infrastructure.Persistence;
 using Infrastructure.Seed;
 using Infrastructure.Services;
+using InfrastructureProductService = Infrastructure.Services.ProductService;
+using InfrastructureTokenService = Infrastructure.Services.TokenService;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 using Scalar.AspNetCore;
+using Stripe;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -45,6 +49,11 @@ builder.Services.AddDbContext<AuthDbContext>(options =>
             x.MigrationsHistoryTable("__EFMigrationsHistory", "auth");
         })); //jaja byt sen jag är inte rik. 
 
+//Stripe configuration
+var stripeSection = builder.Configuration.GetSection("Stripe");
+builder.Services.Configure<StripeOptions>(stripeSection);
+StripeConfiguration.ApiKey = stripeSection["SecretKey"];
+
 //Identity Configuration
 builder.Services.AddIdentity<User, AppRole>(options =>
     {
@@ -61,7 +70,8 @@ builder.Services.AddIdentity<User, AppRole>(options =>
 builder.Services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<PallshoppenDbContext>());
 
 //Services
-builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<PaymentsService>();
+builder.Services.AddScoped<IProductService, InfrastructureProductService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IAdminOrderService, AdminOrderService>();
 builder.Services.AddScoped<IAdminProductService, AdminProductService>();
@@ -74,7 +84,7 @@ builder.Services.AddHostedService<DatabaseInitializerHostedService>();
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<ITokenRefreshStore, TokenRefreshStore>();
-builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<ITokenService, InfrastructureTokenService>();
 builder.Services.AddScoped<OrderAssembler>();
 
 //Authentication & Authorization
