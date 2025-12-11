@@ -39,6 +39,7 @@ public sealed class OrderAssembler(IAppDbContext db)
             dto.ShippingAddress.PostalCode,
             dto.ShippingAddress.Country);
 
+
         var shippingCost = dto.ShippingCost ?? 0m;
         var currency = string.IsNullOrWhiteSpace(dto.Currency) ? "SEK" : dto.Currency;
 

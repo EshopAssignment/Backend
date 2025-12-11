@@ -18,7 +18,6 @@ public class OrderService(PallshoppenDbContext dbContext, OrderAssembler assembl
             throw new InvalidOperationException("Must alteast have one item");
 
         var orderNumber = await GenerateUniqueOrderNumberAsync(ct);
-
         var order = await assembler.FromDtoAsync(dto, orderNumber, ct);
 
         dbContext.Orders.Add(order);
