@@ -13,37 +13,69 @@ public sealed class OrderAssembler(IAppDbContext db)
 
     public async Task<Order> FromDtoAsync(CreateOrderRequestDto dto, string orderNumber, CancellationToken ct)
     {
-        var  ids = dto.Items.Select(i => i.ProductId).Distinct().ToArray();
+        if (dto.Items is null || dto.Items.Count == 0)
+            throw new InvalidOperationException("Order must contain at least one item.");
 
-        var product = await _db.Products
-            .Where(p => ids.Contains(p.Id))
+        // trimma och validera kundfält (så vi inte råkar få null/space)
+        var first = (dto.CustomerFirstName ?? "").Trim();
+        var last = (dto.CustomerLastName ?? "").Trim();
+        var email = (dto.CustomerEmail ?? "").Trim();
+        var phone = (dto.CustomerPhoneNumber ?? "").Trim();
+
+        if (first.Length == 0) throw new ArgumentException("CustomerFirstName required");
+        if (last.Length == 0) throw new ArgumentException("CustomerLastName required");
+        if (email.Length == 0) throw new ArgumentException("CustomerEmail required");
+        if (phone.Length == 0) throw new ArgumentException("CustomerPhoneNumber required");
+
+        var street = (dto.ShippingAddress.Street ?? "").Trim();
+        var zip = (dto.ShippingAddress.PostalCode ?? "").Trim();
+        var city = (dto.ShippingAddress.City ?? "").Trim();
+        var country = (dto.ShippingAddress.Country ?? "SE").Trim();
+
+        if (street.Length == 0) throw new ArgumentException("ShippingStreet required");
+        if (zip.Length == 0) throw new ArgumentException("ShippingPostalCode required");
+        if (city.Length == 0) throw new ArgumentException("ShippingCity required");
+
+        var shipping = new ShippingAddress(street, zip, city, country);
+
+        var byProduct = dto.Items
+            .GroupBy(x => x.ProductId)
+            .Select(g => new { ProductId = g.Key, Qty = g.Sum(x => x.Quantity) })
+            .ToList();
+
+        if (byProduct.Any(x => x.Qty <= 0))
+            throw new ArgumentOutOfRangeException(nameof(dto.Items), "Quantity must be > 0");
+
+        var ids = byProduct.Select(x => x.ProductId).ToList();
+
+        var products = await db.Products
+            .Where(p => ids.Contains(p.Id) && p.IsActive)
             .ToListAsync(ct);
 
-        var found = product.Select(p => p.Id).ToHashSet();
-        var missing = ids.Where(id => !found.Contains(id)).ToArray();
+        if (products.Count != ids.Count)
+            throw new InvalidOperationException("One or more products are invalid or inactive.");
 
-        if(missing.Length > 0)
-        {
-            throw new InvalidOperationException($"Products not found: {string.Join(", ", missing)}");
-        }
+        var lines = byProduct
+            .Select(x =>
+            {
+                var p = products.First(pp => pp.Id == x.ProductId);
+                return (Product: p, Quantity: x.Qty);
+            })
+            .ToList();
 
-        var lines = dto.Items.Select(i =>
-        {
-            var p = product.First(x => x.Id == i.ProductId);
-            return (Product: p, i.Quantity);
-        }).ToList();
+        var order = OrderFactory.Create(
+            orderNumber: orderNumber,
+            shipping: shipping,
+            lines: lines,
+            shippingCost: 0m,
+            currency: "SEK"
+        );
 
-        var adress = new ShippingAddress(
-            dto.ShippingAddress.Street,
-            dto.ShippingAddress.City,
-            dto.ShippingAddress.PostalCode,
-            dto.ShippingAddress.Country);
+        order.CustomerFirstName = first;
+        order.CustomerLastName = last;
+        order.CustomerEmail = email;
+        order.CustomerPhoneNumber = phone;
 
-
-        var shippingCost = dto.ShippingCost ?? 0m;
-        var currency = string.IsNullOrWhiteSpace(dto.Currency) ? "SEK" : dto.Currency;
-
-
-        return OrderFactory.Create(orderNumber, adress, lines, shippingCost, currency);
+        return order;
     }
 }

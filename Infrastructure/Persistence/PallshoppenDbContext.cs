@@ -103,9 +103,9 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
             p.Property(x => x.LatestChargeId).HasMaxLength(128);
             p.Property(x => x.PaymentMethodType).HasMaxLength(32);
 
-            p.Property(x => x.AmountAuthorized).HasPrecision(18, 2);
-            p.Property(x => x.AmountCaptured).HasPrecision(18, 2);
-            p.Property(x => x.AmountRefunded).HasPrecision(18, 2);
+            p.Property(pp => pp.AmountAuthorized).IsRequired(false);
+            p.Property(pp => pp.AmountCaptured).IsRequired(false);
+            p.Property(pp => pp.AmountRefunded).IsRequired(false);
         });
 
         entity.HasMany(o => o.OrderItems)
