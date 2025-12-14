@@ -23,7 +23,7 @@ var builder = WebApplication.CreateBuilder(args);
 //Cors Configuration.
 builder.Services.AddCors(o =>
     o.AddPolicy("AllowFrontend", p => p
-        .WithOrigins("http://localhost:5173", "http://127.0.0.1:5173")
+        .WithOrigins("http://localhost:5173")
         .AllowAnyHeader()
         .AllowAnyMethod()
         .AllowCredentials()
@@ -154,7 +154,14 @@ app.UseCors("AllowFrontend");
 
 app.UseAuthentication();
 app.UseAuthorization();
-
+app.Use(async (ctx, next) =>
+{
+    if (ctx.Request.Path.StartsWithSegments("/auth/login"))
+    {
+        Console.WriteLine($"CT: {ctx.Request.ContentType ?? "<null>"}  Len: {ctx.Request.ContentLength?.ToString() ?? "<null>"}  Method: {ctx.Request.Method}");
+    }
+    await next();
+});
 app.MapControllers();
 
 app.Run();

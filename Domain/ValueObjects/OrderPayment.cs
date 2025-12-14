@@ -13,9 +13,9 @@ public sealed record OrderPayment
     
     
     public string Currency { get; private set; } = "SEK";
-    public string AmountAuthorized { get; private set; } = null!;
-    public string AmountCaptured { get; private set; } = null!;
-    public string AmountRefunded { get; private set; } = null!;
+    public string? AmountAuthorized { get; private set; } = null!;
+    public string? AmountCaptured { get; private set; } = null!;
+    public string? AmountRefunded { get; private set; } = null!;
 
     public DateTime? AuthorizedAt { get; private set; }
     public DateTime? CapturedAt { get; private set; }
