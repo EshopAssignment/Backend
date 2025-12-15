@@ -1,23 +1,18 @@
-﻿using Domain.Stripe;
-using Infrastructure.Persistence;
+﻿using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using Stripe;
 
-namespace Infrastructure.Services;
-
-public class PaymentsService(PallshoppenDbContext dbContext, IOptions<StripeOptions> opts)
+public class PaymentsService(PallshoppenDbContext dbContext, StripeClient stripeClient)
 {
-    private readonly PallshoppenDbContext _dbContext = dbContext;
-    private readonly PaymentIntentService _pi = new PaymentIntentService();
-    private readonly StripeOptions _options = opts.Value;
+    private readonly PallshoppenDbContext _db = dbContext;
+    private readonly PaymentIntentService _pi = new PaymentIntentService(stripeClient);
 
     private static long ToMinorUnits(decimal amount) =>
         (long)Math.Round(amount * 100m, 0, MidpointRounding.AwayFromZero);
 
     public async Task<string> CreateOrGetClientSecretAsync(string orderNumber, string cartId, CancellationToken ct)
     {
-        var order = await _dbContext.Orders.FirstOrDefaultAsync(o => o.OrderNumber == orderNumber, ct)
+        var order = await _db.Orders.FirstOrDefaultAsync(o => o.OrderNumber == orderNumber, ct)
                    ?? throw new InvalidOperationException("Order not found");
 
         if (!string.IsNullOrWhiteSpace(order.Payment.PaymentIntentId))
@@ -29,30 +24,14 @@ public class PaymentsService(PallshoppenDbContext dbContext, IOptions<StripeOpti
         var create = new PaymentIntentCreateOptions
         {
             Amount = ToMinorUnits(order.GrandTotal),
-            Currency = (order.Currency ?? "SEK").ToLowerInvariant(),
+            Currency = order.Currency.ToLowerInvariant(),
             AutomaticPaymentMethods = new PaymentIntentAutomaticPaymentMethodsOptions { Enabled = true },
-            Metadata = new() { ["orderNumber"] = orderNumber, ["cartId"] = cartId },
-            Shipping = new ChargeShippingOptions
-            {
-                Name = $"{order.CustomerFirstName} {order.CustomerLastName}",
-                Address = new AddressOptions
-                {
-                    Line1 = order.ShippingAddress.Street,
-                    PostalCode = order.ShippingAddress.PostalCode,
-                    City = order.ShippingAddress.City,
-                    Country = order.ShippingAddress.Country,
-
-                },
-                Phone = order.CustomerPhoneNumber
-            }
-
+            Metadata = new() { ["orderNumber"] = orderNumber, ["cartId"] = cartId }
         };
 
         var pi = await _pi.CreateAsync(create, new RequestOptions { IdempotencyKey = orderNumber }, ct);
-        order.Payment.OnIntentCreated(pi.Id,pi.PaymentMethodTypes?.FirstOrDefault()  
-        );
-
-        await _dbContext.SaveChangesAsync(ct);
+        order.Payment.OnIntentCreated(pi.Id, pi.PaymentMethodTypes?.FirstOrDefault());
+        await _db.SaveChangesAsync(ct);
         return pi.ClientSecret;
     }
 }

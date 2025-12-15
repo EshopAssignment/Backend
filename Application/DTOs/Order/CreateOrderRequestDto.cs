@@ -7,6 +7,8 @@ public sealed record CreateOrderRequestDto(
     string CustomerPhoneNumber,
     ShippingAddressDto ShippingAddress,
     IReadOnlyList<CreateOrderItemRequestDto> Items,
+    string CartId,
     string Currency = "SEK",
-    decimal? ShippingCost = null
+    decimal? ShippingCost = null,
+    int ReservationTtlMinutes = 60
     );

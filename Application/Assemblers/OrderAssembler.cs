@@ -7,9 +7,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Application.Assemblers;
 
-public sealed class OrderAssembler(IAppDbContext db)
+public sealed class OrderAssembler(IAppDbContext dbContext)
 {
-    private readonly IAppDbContext _db = db;
+    private readonly IAppDbContext _db = dbContext;
 
     public async Task<Order> FromDtoAsync(CreateOrderRequestDto dto, string orderNumber, CancellationToken ct)
     {
@@ -48,7 +48,7 @@ public sealed class OrderAssembler(IAppDbContext db)
 
         var ids = byProduct.Select(x => x.ProductId).ToList();
 
-        var products = await db.Products
+        var products = await dbContext.Products
             .Where(p => ids.Contains(p.Id) && p.IsActive)
             .ToListAsync(ct);
 
