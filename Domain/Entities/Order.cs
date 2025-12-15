@@ -26,6 +26,8 @@ public class Order
     public decimal TaxTotal { get; private set; }
     public decimal GrandTotal { get; private set; }
 
+    public string CartId { get; private set; } = null!;
+    public void SetCartId(string cartId) => CartId = cartId;
 
     public ICollection<OrderItem> OrderItems { get; set; } = [];
     public OrderPayment Payment { get; private set; } = OrderPayment.Init("SEK");

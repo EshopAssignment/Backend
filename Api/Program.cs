@@ -52,7 +52,10 @@ builder.Services.AddDbContext<AuthDbContext>(options =>
 //Stripe configuration
 var stripeSection = builder.Configuration.GetSection("Stripe");
 builder.Services.Configure<StripeOptions>(stripeSection);
-StripeConfiguration.ApiKey = stripeSection["SecretKey"];
+
+var secretKey = stripeSection["SecretKey"];
+if (string.IsNullOrWhiteSpace(secretKey))
+    throw new InvalidOperationException("Stripe:SecretKey saknas i konfig.");
 
 //Identity Configuration
 builder.Services.AddIdentity<User, AppRole>(options =>
@@ -76,6 +79,7 @@ builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IAdminOrderService, AdminOrderService>();
 builder.Services.AddScoped<IAdminProductService, AdminProductService>();
 builder.Services.AddScoped<IInventoryService, InventoryService>();
+builder.Services.AddSingleton(_ => new Stripe.StripeClient(secretKey));
 
 //Register HostedService(Background seeder)
 builder.Services.AddHostedService<DatabaseInitializerHostedService>();
@@ -129,6 +133,8 @@ builder.Services.AddAuthorization();
 
 
 var app = builder.Build();
+
+app.Logger.LogInformation("Stripe configured? Secret present: {HasKey}", !string.IsNullOrWhiteSpace(secretKey));
 
 await IdentitySeeder.SeedAsync(app.Services);
 app.MapOpenApi("/openapi.json");
