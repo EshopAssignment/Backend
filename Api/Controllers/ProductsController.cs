@@ -21,10 +21,11 @@ public class ProductsController(IProductService productService) : ControllerBase
         [FromQuery] List<string>? condition = null,
         [FromQuery] decimal? minPrice = null,
         [FromQuery] decimal? maxPrice = null,
+        [FromQuery] bool? inStock = null,
         CancellationToken cancellationtoken = default)
     {
         var products = await productService.GetAllAsync(
-            page, pageSize, query, sort, type, condition, minPrice, maxPrice, cancellationtoken);
+            page, pageSize, query, sort, type, condition, minPrice, maxPrice, inStock, cancellationtoken);
         return Ok(products);
     }
 

@@ -32,10 +32,10 @@ public class ProductService(PallshoppenDbContext dbContext) : IProductService
         p.IsActive,
         p.Sku,
         p.Slug
-            );
+        );
 
 
-    public async Task<PagedResult<ProductDto>> GetAllAsync(int page, int pageSize, string? query, string? sort, List<string>? type, List<string>? condition, decimal? minPrice, decimal? maxPrice, CancellationToken ct)
+    public async Task<PagedResult<ProductDto>> GetAllAsync(int page, int pageSize, string? query, string? sort, List<string>? type, List<string>? condition, decimal? minPrice, decimal? maxPrice, bool? inStock, CancellationToken ct)
     {
         var q = dbContext.Products.AsNoTracking().Where(p => p.IsActive);
 
@@ -63,6 +63,11 @@ public class ProductService(PallshoppenDbContext dbContext) : IProductService
 
         if (minPrice.HasValue) q = q.Where(p => p.PriceExVat >= minPrice.Value);
         if (maxPrice.HasValue) q = q.Where(p => p.PriceExVat <= maxPrice.Value);
+
+        if (inStock == true)
+        {
+            q = q.Where(p => p.Available > 0);
+        }
 
         q = sort switch
         {

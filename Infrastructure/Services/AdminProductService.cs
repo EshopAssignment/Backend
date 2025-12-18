@@ -157,7 +157,6 @@ public class AdminProductService(PallshoppenDbContext dbContext) : IAdminProduct
         entity.PriceExVat = Math.Round(req.PriceExVat, 2);
         entity.OnHand = req.OnHand;
         entity.Reserved = 0;
-        entity.ImgUrl = string.Empty;
         entity.IsActive = req.IsActive;
 
 
