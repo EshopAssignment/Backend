@@ -48,12 +48,24 @@ public class AdminProductController(IAdminProductService productService, IWebHos
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, [FromBody] AdminUpdateProductRequestDto req, CancellationToken ct = default)
     {
+        Console.WriteLine($"CT: {Request.ContentType}");
+        Console.WriteLine($"HasForm: {Request.HasFormContentType}");
+
+        if (Request.HasFormContentType)
+        {
+            Console.WriteLine($"Form files: {Request.Form.Files.Count}");
+            foreach (var f in Request.Form.Files)
+                Console.WriteLine($"FormFile: name={f.Name} filename={f.FileName} len={f.Length}");
+        }
         var updated = await productService.UpdateAsync(id, req, ct);
         return Ok(updated);
     }
     [HttpPut("{id:int}/image")]
-    public async Task<IActionResult> UploadImage(int id,[FromForm] IFormFile file, CancellationToken ct)
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> UploadImage(int id, [FromForm] IFormFile file, CancellationToken ct)
     {
+
+
         var prod = await productService.GetByIdAsync(id, ct);
         if (prod is null)return NotFound();
 

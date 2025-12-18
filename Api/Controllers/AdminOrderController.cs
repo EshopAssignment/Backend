@@ -27,7 +27,7 @@ public class AdminOrderController(IAdminOrderService adminOrderService) : Contro
 
 
     [HttpGet("{id:int}")]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResult<AdminOrderDetailsDto>))]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(AdminOrderDetailsDto))]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<AdminOrderDetailsDto>> GetById(int id, CancellationToken ct = default)
     {
