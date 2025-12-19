@@ -66,7 +66,7 @@ public class ProductService(PallshoppenDbContext dbContext) : IProductService
 
         if (inStock == true)
         {
-            q = q.Where(p => p.Available > 0);
+            q = q.Where(p => (p.OnHand - p.Reserved) > 0);
         }
 
         q = sort switch
