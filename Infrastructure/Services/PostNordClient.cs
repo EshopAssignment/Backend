@@ -1,5 +1,4 @@
-﻿using System.Net.NetworkInformation;
-using System.Text.Json;
+﻿using System.Text.Json;
 using Application.DTOs.Shipping;
 using Application.Interfaces;
 using Infrastructure.Options;
@@ -14,51 +13,86 @@ public sealed class PostNordClient(HttpClient http, IOptions<PostNordOptions> op
     public async Task<IReadOnlyList<ServicePointDto>> FindServicePointsAsync(string postalCode, string? city, CancellationToken ct)
     {
         var q = new List<string>
-        {
-            $"apikey={Uri.EscapeDataString(_opt.ApiKey)}",
-            "countryCode=SE",
-            $"postalCode={Uri.EscapeDataString(postalCode)}",
-            "numberOfServicePoints=10"
-        };
+    {
+        $"apikey={Uri.EscapeDataString(_opt.ApiKey)}",
+        "countryCode=SE",
+        $"postalCode={Uri.EscapeDataString(postalCode)}",
+        "numberOfServicePoints=10",
+        "returnType=json"
+    };
+
         if (!string.IsNullOrWhiteSpace(city))
             q.Add($"city={Uri.EscapeDataString(city)}");
 
-        var url = "v5/servicepoints?" + string.Join("&", q);
+        var url = "v5/servicepoints/bypostalcode?" + string.Join("&", q);
 
         using var res = await http.GetAsync(url, ct);
-        res.EnsureSuccessStatusCode();
+
+        if (!res.IsSuccessStatusCode)
+        {
+            var body = await res.Content.ReadAsStringAsync(ct);
+            throw new HttpRequestException($"PostNord {(int)res.StatusCode} {res.ReasonPhrase}. Body: {body}");
+        }
 
         await using var stream = await res.Content.ReadAsStreamAsync(ct);
         using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
 
         var root = doc.RootElement;
 
-        JsonElement listEl;
-
-        if (TryGet(root, out listEl, "servicePointInformationResponse", "servicePoints") ||
-            TryGet(root, out listEl, "servicePoints") ||
-            TryGet(root, out listEl, "servicePointInformationResponse", "servicePoint"))
+        if (!TryGet(root, out var arr, "servicePointInformationResponse", "servicePoints") &&
+            !TryGet(root, out arr, "servicePoints") &&
+            !TryGet(root, out arr, "servicePointInformationResponse", "servicePoint"))
         {
-            var outList = new List<ServicePointDto>();
-            foreach (var sp in listEl.EnumerateArray())
-            {
-                var id = GetStr(sp, "servicePointId") ?? GetStr(sp, "id") ?? "";
-                var name = GetStr(sp, "name") ?? GetStr(sp, "servicePointName") ?? "";
-                var visit = sp.TryGetProperty("visitingAddress", out var va) ? va : default;
-
-                var street = visit.ValueKind != JsonValueKind.Undefined ? (GetStr(va, "streetName") ?? GetStr(va, "street")) : "";
-                var pc = visit.ValueKind != JsonValueKind.Undefined ? (GetStr(va, "postalCode") ?? "") : "";
-                var c = visit.ValueKind != JsonValueKind.Undefined ? (GetStr(va, "city") ?? "") : "";
-
-                if (!string.IsNullOrWhiteSpace(id))
-                    outList.Add(new ServicePointDto(id, name, street, pc, c));
-            }
-            return outList;
+            return Array.Empty<ServicePointDto>();
         }
 
-        return [];
+        var outList = new List<ServicePointDto>();
 
+        foreach (var sp in arr.EnumerateArray())
+        {
+            var id = GetStr(sp, "servicePointId") ?? GetStr(sp, "id");
+            var name = GetStr(sp, "name") ?? GetStr(sp, "servicePointName") ?? "";
+
+            var street = "";
+            var pc = "";
+            var c = "";
+
+            if (sp.TryGetProperty("visitingAddress", out var va) && va.ValueKind == JsonValueKind.Object)
+            {
+                street =
+                    GetStr(va, "streetName") ??
+                    GetStr(va, "street") ??
+                    "";
+
+                var streetNo = GetStr(va, "streetNumber");
+                if (!string.IsNullOrWhiteSpace(streetNo) && !street.Contains(streetNo))
+                    street = (street + " " + streetNo).Trim();
+
+                pc = GetStr(va, "postalCode") ?? "";
+                c = GetStr(va, "city") ?? "";
+            }
+            else if (sp.TryGetProperty("address", out var a) && a.ValueKind == JsonValueKind.Object)
+            {
+                street = GetStr(a, "street") ?? "";
+                pc = GetStr(a, "postalCode") ?? "";
+                c = GetStr(a, "city") ?? "";
+            }
+
+            if (string.IsNullOrWhiteSpace(id))
+                continue;
+
+            outList.Add(new ServicePointDto(
+                id.Trim(),
+                name.Trim(),
+                street.Trim(),
+                pc.Trim(),
+                c.Trim()
+            ));
+        }
+
+        return outList;
     }
+
 
     private static bool TryGet(JsonElement el, out JsonElement found, params string[] path)
     {

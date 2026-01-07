@@ -67,7 +67,7 @@ builder.Services.AddHttpClient<IPostNordClient, PostNordClient>((sp, http) =>
 {
     var opt = sp.GetRequiredService <IOptions<PostNordOptions>>().Value;
     http.BaseAddress = new Uri(opt.BaseUrl.TrimEnd('/') + "/");
-    http.Timeout = TimeSpan.FromSeconds(30);
+    http.Timeout = TimeSpan.FromSeconds(10);
 });
 
 //Identity Configuration
