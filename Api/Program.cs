@@ -17,6 +17,8 @@ using Microsoft.IdentityModel.Tokens;
 
 using Scalar.AspNetCore;
 using Stripe;
+using Infrastructure.Options;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -56,6 +58,17 @@ builder.Services.Configure<StripeOptions>(stripeSection);
 var secretKey = stripeSection["SecretKey"];
 if (string.IsNullOrWhiteSpace(secretKey))
     throw new InvalidOperationException("Stripe:SecretKey saknas i konfig.");
+
+
+//PostNord Configuration
+builder.Services.Configure<PostNordOptions>(builder.Configuration.GetSection("PostNord"));
+
+builder.Services.AddHttpClient<IPostNordClient, PostNordClient>((sp, http) =>
+{
+    var opt = sp.GetRequiredService <IOptions<PostNordOptions>>().Value;
+    http.BaseAddress = new Uri(opt.BaseUrl.TrimEnd('/') + "/");
+    http.Timeout = TimeSpan.FromSeconds(30);
+});
 
 //Identity Configuration
 builder.Services.AddIdentity<User, AppRole>(options =>

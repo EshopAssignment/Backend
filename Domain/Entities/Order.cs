@@ -12,13 +12,21 @@ public class Order
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+    // Customer Information
     public string CustomerFirstName { get; set; } = null!;
     public string CustomerLastName { get; set; } = null!;
     public string CustomerEmail { get; set; } = null!;
     public string CustomerPhoneNumber { get; set; } = null!;
 
+    // Shipping Information
     public ShippingAddress ShippingAddress { get; set; } = null!;
     public OrderStatus OrderStatus { get; set; } = OrderStatus.Pending;
+    public ShippingMethod ShippingMethod { get; set; } = ShippingMethod.None;
+    public ShippingCarrier ShippingCarrier { get; set; } = ShippingCarrier.None;
+
+    public string? ServicePointId { get; private set; }
+    public string? ServicePointName { get; private set; }
+    public string? ServicePointAddress { get; private set; }
 
     public string Currency { get; private set; } = "SEK";
     public decimal ProductsSubtotal { get; private set; }  
@@ -26,9 +34,12 @@ public class Order
     public decimal TaxTotal { get; private set; }
     public decimal GrandTotal { get; private set; }
 
+    //Cart Association
     public string CartId { get; private set; } = null!;
     public void SetCartId(string cartId) => CartId = cartId;
 
+
+    // Order Items
     public ICollection<OrderItem> OrderItems { get; set; } = [];
     public OrderPayment Payment { get; private set; } = OrderPayment.Init("SEK");
     public Order() { }
@@ -40,6 +51,7 @@ public class Order
         Payment = OrderPayment.Init(currency);
     }
 
+    // Methods to manage order items and recalculate totals
     public void ReplaceItems(IEnumerable<OrderItem> items)
     {
         OrderItems.Clear();
@@ -62,6 +74,8 @@ public class Order
         GrandTotal = ProductsSubtotal + ShippingCost + TaxTotal;
         Touch();
     }
+
+    // Order Status Management
     public void MarkConfirmed() { OrderStatus = OrderStatus.Confirmed; Touch(); }
     public void MarkProcessing() { OrderStatus = OrderStatus.Processing; Touch(); }
     public void MarkShipped() { OrderStatus = OrderStatus.Shipped; Touch(); }
@@ -72,4 +86,13 @@ public class Order
     private void Touch() => UpdatedAt = DateTime.UtcNow;
 
     public void SetShippingAddress(ShippingAddress address) { ShippingAddress = address; Touch(); }
+    public void SetShippingSelection(ShippingCarrier carrier, ShippingMethod method, decimal cost, string? servicePointId = null, string? sericePointName = null, string? servicePointAdress =null)
+    {
+        ShippingCarrier = carrier;
+        ShippingMethod = method;
+        ServicePointId = servicePointId;
+        ServicePointName = sericePointName;
+        ServicePointAddress = servicePointAdress;
+        SetShippingCost(cost);
+    }
 }

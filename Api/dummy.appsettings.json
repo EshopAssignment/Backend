@@ -19,8 +19,11 @@
       "PublishableKey": "m",
       "SecretKey": "s",
       "WebhookSecret": "w."
+    },
+    "PostNord": {
+      "BaseUrl": "https://atapi2.postnord.com/rest/businesslocation",
+      "ApiKey": "https://atdeveloper.postnord.com/admin/applications?tab=apps"
     }
-
   },
   "AllowedHosts": "*"
 }

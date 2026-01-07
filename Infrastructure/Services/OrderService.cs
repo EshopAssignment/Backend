@@ -1,6 +1,7 @@
 ﻿
 using Application.Assemblers;
 using Application.DTOs.Order;
+using Application.DTOs.Shipping;
 using Application.Interfaces;
 using Domain.Entities;
 using Infrastructure.Persistence;
@@ -137,4 +138,36 @@ public class OrderService(PallshoppenDbContext dbContext, OrderAssembler assembl
         o.OrderStatus,
         o.Payment.Status
     );
+
+    // Shipping selection
+    public async Task<bool> SetShippingSelectionAsync(string orderNumber, SetShippingSelectionDto dto, CancellationToken ct)
+    {
+        var order = await dbContext.Orders.FirstOrDefaultAsync(o => o.OrderNumber == orderNumber, ct);
+        if (order is null) return false;
+
+        if (order.Payment.Status is Domain.Enums.PaymentStatus.Authorized
+            or Domain.Enums.PaymentStatus.Captured
+            or Domain.Enums.PaymentStatus.Refunded)
+            throw new InvalidOperationException("Cannot change shipping after payment authorization.");
+
+        if (dto.ShippingCost < 0) throw new InvalidOperationException("ShippingCost must be >= 0.");
+
+        var carrier = dto.Carrier?.Trim().ToLowerInvariant();
+        var method = dto.Method?.Trim().ToLowerInvariant();
+
+        if (carrier != "postnord") throw new InvalidOperationException("Unsupported carrier.");
+        if (method != "service_point") throw new InvalidOperationException("Unsupported method.");
+        if (string.IsNullOrWhiteSpace(dto.ServicePointId)) throw new InvalidOperationException("ServicePointId is required.");
+
+        order.SetShippingSelection(
+            Domain.Enums.ShippingCarrier.PostNord,
+            Domain.Enums.ShippingMethod.ServicePoint,
+            dto.ShippingCost,
+            dto.ServicePointId
+        );
+
+        await dbContext.SaveChangesAsync(ct);
+        return true;
+    }
+
 }
