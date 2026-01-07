@@ -12,11 +12,15 @@ public sealed class PostNordClient(HttpClient http, IOptions<PostNordOptions> op
 
     public async Task<IReadOnlyList<ServicePointDto>> FindServicePointsAsync(string postalCode, string? city, CancellationToken ct)
     {
+        var pcClean = new string((postalCode ?? "").Where(char.IsDigit).ToArray());
+        if (pcClean.Length != 5)
+            return Array.Empty<ServicePointDto>();
+
         var q = new List<string>
     {
         $"apikey={Uri.EscapeDataString(_opt.ApiKey)}",
         "countryCode=SE",
-        $"postalCode={Uri.EscapeDataString(postalCode)}",
+        $"postalCode={Uri.EscapeDataString(pcClean)}",
         "numberOfServicePoints=10",
         "returnType=json"
     };
@@ -31,6 +35,11 @@ public sealed class PostNordClient(HttpClient http, IOptions<PostNordOptions> op
         if (!res.IsSuccessStatusCode)
         {
             var body = await res.Content.ReadAsStringAsync(ct);
+
+
+            if ((int)res.StatusCode == 400 && LooksLikeNoServicePointFound(body))
+                return Array.Empty<ServicePointDto>();
+
             throw new HttpRequestException($"PostNord {(int)res.StatusCode} {res.ReasonPhrase}. Body: {body}");
         }
 
@@ -51,6 +60,9 @@ public sealed class PostNordClient(HttpClient http, IOptions<PostNordOptions> op
         foreach (var sp in arr.EnumerateArray())
         {
             var id = GetStr(sp, "servicePointId") ?? GetStr(sp, "id");
+            if (string.IsNullOrWhiteSpace(id))
+                continue;
+
             var name = GetStr(sp, "name") ?? GetStr(sp, "servicePointName") ?? "";
 
             var street = "";
@@ -78,9 +90,6 @@ public sealed class PostNordClient(HttpClient http, IOptions<PostNordOptions> op
                 c = GetStr(a, "city") ?? "";
             }
 
-            if (string.IsNullOrWhiteSpace(id))
-                continue;
-
             outList.Add(new ServicePointDto(
                 id.Trim(),
                 name.Trim(),
@@ -92,6 +101,39 @@ public sealed class PostNordClient(HttpClient http, IOptions<PostNordOptions> op
 
         return outList;
     }
+
+
+    private static bool LooksLikeNoServicePointFound(string body)
+    {
+        if (string.IsNullOrWhiteSpace(body)) return false;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(body);
+            var root = doc.RootElement;
+
+            if (root.TryGetProperty("servicePointInformationResponse", out var sp) &&
+                sp.TryGetProperty("compositeFault", out var cf) &&
+                cf.TryGetProperty("faults", out var faults) &&
+                faults.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var f in faults.EnumerateArray())
+                {
+                    if (f.TryGetProperty("faultCode", out var fc) &&
+                        fc.ValueKind == JsonValueKind.String &&
+                        string.Equals(fc.GetString(), "noServicePointFound", StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+            }
+        }
+        catch
+        {
+            Console.WriteLine("KENTA VAFAN GÖR DU!??!??!?");
+        }
+
+        return body.Contains("noServicePointFound", StringComparison.OrdinalIgnoreCase);
+    }
+
 
 
     private static bool TryGet(JsonElement el, out JsonElement found, params string[] path)

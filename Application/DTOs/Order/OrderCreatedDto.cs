@@ -12,5 +12,6 @@ public sealed record OrderCreatedDto(
     decimal TaxTotal,
     decimal GrandTotal,
     OrderStatus OrderStatus,
-    PaymentStatus PaymentStatus
+    PaymentStatus PaymentStatus,
+    ShippingAddressDto ShippingAddress
     );
