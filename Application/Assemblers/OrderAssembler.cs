@@ -16,7 +16,6 @@ public sealed class OrderAssembler(IAppDbContext dbContext)
         if (dto.Items is null || dto.Items.Count == 0)
             throw new InvalidOperationException("Order must contain at least one item.");
 
-        // trimma och validera kundfält (så vi inte råkar få null/space)
         var first = (dto.CustomerFirstName ?? "").Trim();
         var last = (dto.CustomerLastName ?? "").Trim();
         var email = (dto.CustomerEmail ?? "").Trim();
@@ -36,7 +35,7 @@ public sealed class OrderAssembler(IAppDbContext dbContext)
         if (zip.Length == 0) throw new ArgumentException("ShippingPostalCode required");
         if (city.Length == 0) throw new ArgumentException("ShippingCity required");
 
-        var shipping = new ShippingAddress(street, zip, city, country);
+        var shipping = new ShippingAddress(street, city, zip, country);
 
         var byProduct = dto.Items
             .GroupBy(x => x.ProductId)
