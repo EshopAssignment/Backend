@@ -1,5 +1,6 @@
 ﻿
 using Application.DTOs.Order;
+using Application.DTOs.Shipping;
 
 namespace Application.Interfaces;
 
@@ -13,4 +14,6 @@ public interface IOrderService
     Task<bool> MarkPaymentAuthorizedAsync(string orderNumber, string paymentIntentId, string? latestChargeId, string? methodType, decimal amount, string cartId, CancellationToken ct);
     Task<bool> MarkPaymentFailedAsync(string orderNumber, CancellationToken ct);
     Task<bool> MarkRefundedAsync(string orderNumber, decimal amount, CancellationToken ct);
+
+    Task<bool> SetShippingSelectionAsync(string orderNumber, SetShippingSelectionDto dto, CancellationToken ct);
 }

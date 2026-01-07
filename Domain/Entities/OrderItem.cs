@@ -1,13 +1,9 @@
 ﻿
 
-using System.Net.Quic;
-
 namespace Domain.Entities;
 
 public class OrderItem
 {
-    public decimal lineTotal;
-
     public int Id { get; set; }
     public int OrderId { get; set;}    
     public Order Order { get; set; } = null!;
