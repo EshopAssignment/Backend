@@ -1,6 +1,7 @@
 ﻿using Application.DTOs.Auth;
 using Application.Interfaces.Auth;
 using Domain.Entities.Identity;
+using Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -14,18 +15,43 @@ public class AuthController : ControllerBase
     public readonly SignInManager<User> _signInManager;
     public readonly ITokenService _tokenService;
     public readonly ITokenRefreshStore _refreshStore;
+    public readonly AuthDbContext _authContext;
 
-    public AuthController(UserManager<User> user, SignInManager<User> manager, ITokenService tokenService, ITokenRefreshStore refreshStore)
-        => (_user, _signInManager, _tokenService, _refreshStore) = (user, manager, tokenService, refreshStore);
+    public AuthController(UserManager<User> user, SignInManager<User> manager, ITokenService tokenService, ITokenRefreshStore refreshStore, AuthDbContext authContext)
+        => (_user, _signInManager, _tokenService, _refreshStore, _authContext) = (user, manager, tokenService, refreshStore, authContext);
 
 
     [HttpPost("register")]
     public async Task<IActionResult> Register(RegisterDto dto)
     {
-        var user = new User { UserName = dto.Email, Email = dto.Email };
+        var user = new User
+        {
+            UserName = dto.Email,
+            Email = dto.Email,
+            DisplayName = dto.DisplayName
+        };
+
         var res = await _user.CreateAsync(user, dto.Password);
         if (!res.Succeeded) return BadRequest(res.Errors);
+
         await _user.AddToRoleAsync(user, "User");
+
+
+        var exists = await _authContext.UserProfiles.FindAsync(user.Id);
+        if (exists is null)
+        {
+            _authContext.UserProfiles.Add(new UserProfile
+            {
+                UserId = user.Id,
+                FirstName = "",
+                LastName = "",
+                Phone = "",
+                DefaultShippingAddressId = null
+            });
+
+            await _authContext.SaveChangesAsync();
+        }
+
         return Ok();
     }
 
