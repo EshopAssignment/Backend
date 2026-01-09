@@ -149,7 +149,10 @@ public class OrderService(PallshoppenDbContext dbContext, OrderAssembler assembl
     // Shipping selection
     public async Task<bool> SetShippingSelectionAsync(string orderNumber, SetShippingSelectionDto dto, CancellationToken ct)
     {
-        var order = await dbContext.Orders.FirstOrDefaultAsync(o => o.OrderNumber == orderNumber, ct);
+        var order = await dbContext.Orders
+            .Include(o => o.OrderItems)
+            .FirstOrDefaultAsync(o => o.OrderNumber == orderNumber, ct);
+
         if (order is null) return false;
 
         if (order.Payment.Status is Domain.Enums.PaymentStatus.Authorized
