@@ -87,7 +87,7 @@ public class MeController(UserManager<User> users, AuthDbContext authContext) : 
         var a = new UserAddress
         {
             UserId = u.Id,
-            Label = dto.Label.Trim() ?? "Home",
+            Label = string.IsNullOrWhiteSpace(dto.Label) ? "Home" : dto.Label.Trim(),
             Street = dto.Street?.Trim() ?? "",
             City = dto.City?.Trim() ?? "",
             PostalCode = dto.PostalCode?.Trim() ?? "",
@@ -98,5 +98,21 @@ public class MeController(UserManager<User> users, AuthDbContext authContext) : 
         await authContext.SaveChangesAsync(ct);
 
         return CreatedAtAction(nameof(GetProfile), new { }, null);
+    }
+
+    [HttpPatch("profile/default-address")]
+    public async Task<IActionResult> SetDefaultAddress(SetDefaultAddressDto dto, CancellationToken ct)
+    {
+        var uid = int.Parse(users.GetUserId(User)!);
+
+        var u = await authContext.Users.Include(x => x.Profile).FirstOrDefaultAsync(x => x.Id == uid, ct);
+
+        if (u is null) return Unauthorized();
+
+        u.Profile ??= new UserProfile { UserId = u.Id };
+        u.Profile.DefaultShippingAddressId = dto.DefaultShippingAddressId;
+
+        await authContext.SaveChangesAsync(ct);
+        return NoContent();
     }
 }

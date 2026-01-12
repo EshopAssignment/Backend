@@ -36,3 +36,4 @@ public sealed record UpsertAddressDto
     string PostalCode,
     string Country
     );
+public sealed record SetDefaultAddressDto(int? DefaultShippingAddressId);
