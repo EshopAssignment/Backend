@@ -138,13 +138,14 @@ public class OrderService(PallshoppenDbContext dbContext, OrderAssembler assembl
         o.TaxTotal,
         o.GrandTotal,
         o.OrderStatus,
-        o.Payment.Status,
+        o.Payment.Status, 
         new ShippingAddressDto(
             o.ShippingAddress.Street,
             o.ShippingAddress.City,
             o.ShippingAddress.PostalCode,
             o.ShippingAddress.Country
-        )
+        ),
+        o.UserId
 
     );
 
