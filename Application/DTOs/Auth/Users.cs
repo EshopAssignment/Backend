@@ -5,10 +5,11 @@ public sealed record MeDto(
     int UserId,
     string Email,
     string? DisplayName,
-    UserProfileDto Profile
+    UserProfileDto Profile,
+    IReadOnlyList<string> Roles
     );
 public sealed record UserProfileDto(
-    string FristName,
+    string FirstName,
     string LastName,
     string Phone,
     int? DefaultShippingAddressId,
