@@ -6,19 +6,19 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Identity.Client;
 
 namespace Api.Controllers;
 
-[Route("api/[controller]")]
 [ApiController]
+[Route("api/me")]
 [Authorize]
 public class MeController(UserManager<User> users, AuthDbContext authContext) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<MeDto>> GetProfile(CancellationToken ct)
     {
-        var uid = int.Parse(users.GetUserId(User)!);
+        if (!int.TryParse(users.GetUserId(User), out var uid))
+            return Unauthorized();
 
         var u = await authContext.Users
             .AsNoTracking()
@@ -27,6 +27,8 @@ public class MeController(UserManager<User> users, AuthDbContext authContext) : 
             .FirstOrDefaultAsync(x => x.Id == uid, ct);
 
         if (u is null) return Unauthorized();
+
+        var roles = await users.GetRolesAsync(u);
 
         var p = u.Profile ?? new UserProfile { UserId = u.Id };
 
@@ -43,14 +45,16 @@ public class MeController(UserManager<User> users, AuthDbContext authContext) : 
                     .Where(a => !a.IsDeleted)
                     .Select(a => new UserAddressDto(a.Id, a.Label, a.Street, a.City, a.PostalCode, a.Country))
                     .ToList()
-            )
+            ),
+            roles.ToList()
         ));
     }
 
     [HttpPut("profile")]
     public async Task<IActionResult> UpdateProfile(UpdateProfileDto dto, CancellationToken ct)
     {
-        var uid = int.Parse(users.GetUserId(User)!);
+        if (!int.TryParse(users.GetUserId(User), out var uid))
+            return Unauthorized();
 
         var u = await authContext.Users
             .Include(x => x.Profile)
@@ -71,9 +75,10 @@ public class MeController(UserManager<User> users, AuthDbContext authContext) : 
     }
 
     [HttpPost("addresses")]
-    public async Task<ActionResult> AddAdresses(UpsertAddressDto dto, CancellationToken ct)
+    public async Task<IActionResult> AddAddress(UpsertAddressDto dto, CancellationToken ct)
     {
-        var uid = int.Parse(users.GetUserId(User)!);
+        if (!int.TryParse(users.GetUserId(User), out var uid))
+            return Unauthorized();
 
         var u = await authContext.Users
             .Include(x => x.Profile)
@@ -97,15 +102,18 @@ public class MeController(UserManager<User> users, AuthDbContext authContext) : 
         u.Profile.Addresses.Add(a);
         await authContext.SaveChangesAsync(ct);
 
-        return CreatedAtAction(nameof(GetProfile), new { }, null);
+        return NoContent();
     }
 
     [HttpPatch("profile/default-address")]
     public async Task<IActionResult> SetDefaultAddress(SetDefaultAddressDto dto, CancellationToken ct)
     {
-        var uid = int.Parse(users.GetUserId(User)!);
+        if (!int.TryParse(users.GetUserId(User), out var uid))
+            return Unauthorized();
 
-        var u = await authContext.Users.Include(x => x.Profile).FirstOrDefaultAsync(x => x.Id == uid, ct);
+        var u = await authContext.Users
+            .Include(x => x.Profile)
+            .FirstOrDefaultAsync(x => x.Id == uid, ct);
 
         if (u is null) return Unauthorized();
 
