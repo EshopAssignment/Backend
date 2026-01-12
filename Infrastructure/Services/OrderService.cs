@@ -13,7 +13,7 @@ public class OrderService(PallshoppenDbContext dbContext, OrderAssembler assembl
 {
  
     //Order Tasks
-    public async Task<OrderCreatedDto> CreateAsync(CreateOrderRequestDto dto, CancellationToken ct)
+    public async Task<OrderCreatedDto> CreateAsync(CreateOrderRequestDto dto, int? userId, CancellationToken ct)
     {
         if (dto.Items is null || dto.Items.Count == 0)
             throw new InvalidOperationException("Must alteast have one item");
@@ -21,7 +21,9 @@ public class OrderService(PallshoppenDbContext dbContext, OrderAssembler assembl
         var orderNumber = await GenerateUniqueOrderNumberAsync(ct);
         var order = await assembler.FromDtoAsync(dto, orderNumber, ct);
 
+        order.UserId = userId;
         order.SetCartId(dto.CartId);
+
         var ttl = TimeSpan.FromMinutes(dto.ReservationTtlMinutes <= 0 ? 60 : dto.ReservationTtlMinutes);
         foreach (var i in dto.Items)
         {

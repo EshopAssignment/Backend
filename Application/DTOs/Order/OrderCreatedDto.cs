@@ -13,5 +13,6 @@ public sealed record OrderCreatedDto(
     decimal GrandTotal,
     OrderStatus OrderStatus,
     PaymentStatus PaymentStatus,
-    ShippingAddressDto ShippingAddress
+    ShippingAddressDto ShippingAddress,
+    int? UserId
     );

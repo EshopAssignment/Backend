@@ -85,6 +85,12 @@ public class Order
     public void MarkRefunded() { OrderStatus = OrderStatus.Refunded; Touch(); }
     private void Touch() => UpdatedAt = DateTime.UtcNow;
 
+    //User Id Management
+    public int? UserId { get; set; }
+    public void SetUserId(int? userId) => UserId = userId;
+
+    // Shipping Information Management
+
     public void SetShippingAddress(ShippingAddress address) { ShippingAddress = address; Touch(); }
     public void SetShippingSelection(ShippingCarrier carrier, ShippingMethod method, decimal cost, string? servicePointId = null, string? sericePointName = null, string? servicePointAdress =null)
     {
