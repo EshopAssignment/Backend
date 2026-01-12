@@ -1,4 +1,5 @@
-﻿using Application.DTOs.Order;
+﻿using System.Security.Claims;
+using Application.DTOs.Order;
 using Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,7 +12,7 @@ public class OrderController(IOrderService orderService) : ControllerBase
     [HttpPost]
     [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(OrderCreatedDto))]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Create([FromBody] CreateOrderRequestDto request, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> Create([FromBody] CreateOrderRequestDto request,  CancellationToken cancellationToken = default)
     {
         if (request.Items is null || request.Items.Count == 0)
             return BadRequest("Order must contain atleast one item");
@@ -24,9 +25,24 @@ public class OrderController(IOrderService orderService) : ControllerBase
             string.IsNullOrWhiteSpace(request.ShippingAddress.Country))
             return BadRequest("Shipping address is required.");
 
+        int? userId = null;
+        if (User?.Identity?.IsAuthenticated == true)
+        {
+            var idStr = 
+                User.FindFirstValue(ClaimTypes.NameIdentifier) ??
+                User.FindFirstValue("sub");
+
+            if (int.TryParse(idStr, out var parsed))
+                userId = parsed;
+        }
+
+
+
+
+
         try
         {
-            var result = await orderService.CreateAsync(request, cancellationToken);
+            var result = await orderService.CreateAsync(request, userId, cancellationToken);
 
             return CreatedAtAction(
                 nameof(GetById),

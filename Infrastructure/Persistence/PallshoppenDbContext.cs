@@ -79,7 +79,9 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
 
         entity.Property(o => o.OrderStatus).HasConversion<int>();
 
-        
+        entity.Property(o => o.UserId).IsRequired(false);
+        entity.HasIndex(o => o.UserId);
+
         entity.Property(o => o.Currency).HasMaxLength(3).IsRequired();
         entity.Property(o => o.ProductsSubtotal).HasPrecision(18, 2);
         entity.Property(o => o.ShippingCost).HasPrecision(18, 2);
