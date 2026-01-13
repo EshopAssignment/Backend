@@ -1,5 +1,4 @@
-﻿using System.Formats.Asn1;
-using Application.DTOs.Auth;
+﻿using Application.DTOs.Auth;
 using Domain.Entities.Identity;
 using Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
@@ -102,7 +101,7 @@ public class MeController(UserManager<User> users, AuthDbContext authContext) : 
         u.Profile.Addresses.Add(a);
         await authContext.SaveChangesAsync(ct);
 
-        return NoContent();
+        return CreatedAtAction(nameof(GetProfile), null);
     }
 
     [HttpPatch("profile/default-address")]

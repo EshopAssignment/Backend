@@ -75,6 +75,7 @@ public class AuthController : ControllerBase
     {
         Response.Cookies.Delete("access_token");
         Response.Cookies.Delete("refresh_token");
+        Response.Cookies.Delete("uid");
         return Ok();
     }
 
