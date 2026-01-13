@@ -5,6 +5,6 @@ public class User : IdentityUser<int>
 {
     public string? DisplayName { get; set; }
 
-    public UserProfile Profile { get; set; } = new();
+    public UserProfile? Profile { get; set; } 
 }
 
