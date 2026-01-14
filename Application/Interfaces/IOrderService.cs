@@ -16,4 +16,7 @@ public interface IOrderService
     Task<bool> MarkRefundedAsync(string orderNumber, decimal amount, CancellationToken ct);
 
     Task<bool> SetShippingSelectionAsync(string orderNumber, SetShippingSelectionDto dto, CancellationToken ct);
+
+    Task<bool> UpdateCustomerAsync(string orderNumber, UpdateOrderCustomerDto dto, int? userId, CancellationToken ct);
+    Task<bool> UpdateShippingAddressAsync(string orderNumber, UpdateOrderShippingAddressDto dto, int? userId, CancellationToken ct);
 }

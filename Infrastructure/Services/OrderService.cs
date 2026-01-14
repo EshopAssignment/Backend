@@ -1,9 +1,12 @@
 ﻿
+using System.Collections.Generic;
 using Application.Assemblers;
 using Application.DTOs.Order;
 using Application.DTOs.Shipping;
 using Application.Interfaces;
 using Domain.Entities;
+using Domain.Enums;
+using Domain.ValueObjects;
 using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -183,4 +186,72 @@ public class OrderService(PallshoppenDbContext dbContext, OrderAssembler assembl
         return true;
     }
 
+
+    //Checkout Gating Tasks
+    public async Task<bool> UpdateCustomerAsync(string orderNumber, UpdateOrderCustomerDto dto, int? userId, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(orderNumber))
+            throw new InvalidOperationException("OrderNumber is REquired");
+        var order = await dbContext.Orders.FirstOrDefaultAsync(o => o.OrderNumber == orderNumber, ct);
+        if (order is null) return false;
+
+        EnsureCanEdit(order, userId);
+
+        var first = (dto.FirstName ?? "").Trim();
+        var last = (dto.LastName ?? "").Trim();
+        var email = (dto.Email ?? "").Trim();
+        var phone = string.IsNullOrEmpty(dto.Phone) ? null : dto.Phone.Trim();
+
+        if (first.Length == 0) throw new InvalidOperationException("First name is required");
+        if (last.Length == 0) throw new InvalidOperationException("Last name is required");
+        if (email.Length == 0) throw new InvalidOperationException("Email is required");
+
+        order.SetCustomer(first, last, email, phone);
+
+        await dbContext.SaveChangesAsync(ct);
+        return true;
+
+    }
+
+    public async Task<bool> UpdateShippingAddressAsync(string orderNumber, UpdateOrderShippingAddressDto dto, int? userId, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(orderNumber))
+            throw new InvalidOperationException("Ordernumber is required");
+
+        var order = await dbContext.Orders.FirstOrDefaultAsync(o => o.OrderNumber == orderNumber, ct);
+        if (order is null) return false;
+
+        EnsureCanEdit(order, userId);
+
+        var street = (dto.Street ?? "").Trim();
+        var city = (dto.City ?? "").Trim();
+        var postal = (dto.PostalCode ?? "").Trim();
+        var country = string.IsNullOrWhiteSpace(dto.Country) ? "SE" : dto.Country.Trim().ToUpperInvariant();
+
+        if (street.Length == 0) throw new InvalidOperationException("Street is required");
+        if (city.Length == 0) throw new InvalidOperationException("City is required");
+        if (postal.Length == 0) throw new InvalidOperationException("Postal Code is required");
+
+        postal = postal.Replace(" ", "");
+
+        order.SetShippingAddress(new ShippingAddress(
+            street: street,
+            city: city,
+            postalCode: postal,
+            country: country));
+
+        await dbContext.SaveChangesAsync(ct);
+        return true;
+    }
+
+    private static void EnsureCanEdit(Order order, int? userId)
+    {
+        if (order.Payment.Status is PaymentStatus.Authorized
+            or PaymentStatus.Captured
+            or PaymentStatus.Refunded)
+            throw new InvalidOperationException("Cannot change order after payment is authorized");
+
+        if (order.UserId is not null && userId != order.UserId)
+            throw new InvalidOperationException("Not allowed");
+    }
 }
