@@ -10,18 +10,20 @@ public static class OrderFactory
         if (string.IsNullOrWhiteSpace(orderNumber))
             throw new ArgumentException("Order number required", nameof(orderNumber));
 
-        ArgumentNullException.ThrowIfNull(shipping);
         ArgumentNullException.ThrowIfNull(lines);
 
-        var order = new Order(orderNumber, shipping, currency);
+        var order = new Order(orderNumber, currency);
 
         var items = new List<OrderItem>();
         foreach (var (product, qty) in lines)
-            items.Add(OrderItemFactory.FromProduct(product, qty));
+            items.Add(OrderItemFactory.FromProductExVat(product, qty));
 
         order.ReplaceItems(items);
-        if(shippingCost > 0) order.SetShippingCost(shippingCost);
-        order.SetTaxTotal(0);
+
+        order.SetShippingCost(0m);
+
+        var tax = items.Sum(i => i.LineTotal * i.VatRate);
+        order.SetTaxTotal(tax);
 
         return order;
     }
@@ -34,7 +36,7 @@ public static class OrderFactory
         ArgumentNullException.ThrowIfNull(shipping);
         ArgumentNullException.ThrowIfNull(items);
 
-        var order = new Order(orderNumber, shipping, currency);
+        var order = new Order(orderNumber, currency);
         order.ReplaceItems(items);
         if (shippingCost > 0) order.SetShippingCost(shippingCost);
         order.SetTaxTotal(0);

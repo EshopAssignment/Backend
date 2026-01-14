@@ -16,14 +16,14 @@ public class OrderController(IOrderService orderService) : ControllerBase
     {
         if (request.Items is null || request.Items.Count == 0)
             return BadRequest("Order must contain atleast one item");
+
         if (request.Items.Any(i => i.Quantity <= 0))
             return BadRequest("item quantity must be >= 1");
-        if (request.ShippingAddress is null ||
-            string.IsNullOrWhiteSpace(request.ShippingAddress.Street) ||
-            string.IsNullOrWhiteSpace(request.ShippingAddress.City) ||
-            string.IsNullOrWhiteSpace(request.ShippingAddress.PostalCode) ||
-            string.IsNullOrWhiteSpace(request.ShippingAddress.Country))
-            return BadRequest("Shipping address is required.");
+        
+        if (string.IsNullOrWhiteSpace(request.CartId))
+            return BadRequest("CartId is required");
+
+
 
         int? userId = null;
         if (User?.Identity?.IsAuthenticated == true)
@@ -36,17 +36,13 @@ public class OrderController(IOrderService orderService) : ControllerBase
                 userId = parsed;
         }
 
-
-
-
-
         try
         {
             var result = await orderService.CreateAsync(request, userId, cancellationToken);
 
             return CreatedAtAction(
-                nameof(GetById),
-                new { id = result.OrderId },
+                nameof(GetByNumber),
+                new { orderNumber = result.OrderNumber},
                 result
 
             );
@@ -54,7 +50,6 @@ public class OrderController(IOrderService orderService) : ControllerBase
 
         catch(InvalidOperationException ex)
         {
-            Console.Write(ex.Message);
             return BadRequest(ex.Message);
         }
        
@@ -66,9 +61,9 @@ public class OrderController(IOrderService orderService) : ControllerBase
     public async Task<IActionResult> GetById(int id, CancellationToken cancellationToken = default)
     {
         if (id <= 0) return NotFound();
+
         var dto = await orderService.GetByIdAsync(id, cancellationToken);
-            if (dto is null) return NotFound();
-        return Ok(dto);
+        return dto is null ? NotFound() : Ok(dto);
     }
 
     [HttpGet("by-number/{orderNumber}")]

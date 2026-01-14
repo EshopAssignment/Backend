@@ -14,24 +14,27 @@ public class AdminOrderService(PallshoppenDbContext dbContext) : IAdminOrderServ
     {
         var q = dbContext.Orders.AsNoTracking().AsQueryable();
 
-        if(!string.IsNullOrWhiteSpace(query))
+        if (!string.IsNullOrWhiteSpace(query))
         {
             var term = query.Trim();
+
             q = q.Where(o =>
-            o.OrderNumber.Contains(term) ||
-            o.CustomerFirstName.Contains(term) ||
-            o.CustomerLastName.Contains(term) ||
-            o.CustomerEmail.Contains(term) ||
-            o.CustomerPhoneNumber.Contains(term));
+                o.OrderNumber.Contains(term) ||
+                (o.CustomerFirstName != null && o.CustomerFirstName.Contains(term)) ||
+                (o.CustomerLastName != null && o.CustomerLastName.Contains(term)) ||
+                (o.CustomerEmail != null && o.CustomerEmail.Contains(term)) ||
+                (o.CustomerPhoneNumber != null && o.CustomerPhoneNumber.Contains(term))
+            );
         }
 
-        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<OrderStatus>(status, ignoreCase:true, out var parsed))
+        if (!string.IsNullOrWhiteSpace(status) &&
+            Enum.TryParse<OrderStatus>(status, ignoreCase: true, out var parsed))
         {
             q = q.Where(o => o.OrderStatus == parsed);
         }
 
-        if(from.HasValue) q = q.Where(o => o.CreatedAt >= from.Value);
-        if(to.HasValue) q = q.Where(o => o.CreatedAt <= to.Value);
+        if (from.HasValue) q = q.Where(o => o.CreatedAt >= from.Value);
+        if (to.HasValue) q = q.Where(o => o.CreatedAt <= to.Value);
 
         q = q.OrderByDescending(o => o.CreatedAt).ThenByDescending(o => o.Id);
 
@@ -44,12 +47,12 @@ public class AdminOrderService(PallshoppenDbContext dbContext) : IAdminOrderServ
                 Id: o.Id,
                 OrderNumber: o.OrderNumber,
                 CreatedAtUtc: o.CreatedAt,
-                CustomerName: o.CustomerFirstName + " " + o.CustomerLastName,
-                CustomerEmail: o.CustomerEmail,
+                CustomerName: ((o.CustomerFirstName ?? "") + " " + (o.CustomerLastName ?? "")).Trim(),
+                CustomerEmail: o.CustomerEmail ?? string.Empty,
                 OrderStatus: o.OrderStatus,
                 PaymentStatus: o.Payment.Status,
                 GrandTotal: o.GrandTotal,
-                PaymentMethod: o.Payment.PaymentMethodType ?? string.Empty 
+                PaymentMethod: o.Payment.PaymentMethodType ?? string.Empty
             ))
             .ToListAsync(ct);
 
@@ -84,17 +87,23 @@ public class AdminOrderService(PallshoppenDbContext dbContext) : IAdminOrderServ
                 LineTotal: i.LineTotal))
             .ToList();
 
-        return new AdminOrderDetailsDto(Id: o.Id,
+        var street = o.ShippingAddress?.Street ?? string.Empty;
+        var postal = o.ShippingAddress?.PostalCode ?? string.Empty;
+        var city = o.ShippingAddress?.City ?? string.Empty;
+        var country = o.ShippingAddress?.Country ?? string.Empty;
+
+        return new AdminOrderDetailsDto(
+            Id: o.Id,
             OrderNumber: o.OrderNumber,
             CreatedAtUtc: o.CreatedAt,
-            CustomerFirstName: o.CustomerFirstName,
-            CustomerLastName: o.CustomerLastName,
-            CustomerEmail: o.CustomerEmail,
-            CustomerPhoneNumber: o.CustomerPhoneNumber,
-            ShippingStreet: o.ShippingAddress.Street,
-            ShippingPostalCode: o.ShippingAddress.PostalCode,
-            ShippingCity: o.ShippingAddress.City,
-            ShippingCountry: o.ShippingAddress.Country,
+            CustomerFirstName: o.CustomerFirstName ?? string.Empty,
+            CustomerLastName: o.CustomerLastName ?? string.Empty,
+            CustomerEmail: o.CustomerEmail ?? string.Empty,
+            CustomerPhoneNumber: o.CustomerPhoneNumber ?? string.Empty,
+            ShippingStreet: street,
+            ShippingPostalCode: postal,
+            ShippingCity: city,
+            ShippingCountry: country,
             OrderStatus: o.OrderStatus,
             PaymentStatus: o.Payment.Status,
             PaymentMethod: o.Payment.PaymentMethodType ?? string.Empty,
@@ -104,8 +113,8 @@ public class AdminOrderService(PallshoppenDbContext dbContext) : IAdminOrderServ
             ShippingCost: o.ShippingCost,
             TaxTotal: o.TaxTotal,
             GrandTotal: o.GrandTotal,
-            Items: items);
-
+            Items: items
+        );
     }
 
     public async Task<bool> UpdateStatusAsync(int id, string newStatus, CancellationToken ct)
@@ -116,10 +125,8 @@ public class AdminOrderService(PallshoppenDbContext dbContext) : IAdminOrderServ
         var o = await dbContext.Orders.FirstOrDefaultAsync(x => x.Id == id, ct);
         if (o is null) return false;
 
-        switch(next)
+        switch (next)
         {
-            case OrderStatus.Pending: o.MarkFailed(); o.MarkCancelled(); o.MarkConfirmed();
-                return false;
             case OrderStatus.Processing: o.MarkProcessing(); break;
             case OrderStatus.Shipped: o.MarkShipped(); break;
             case OrderStatus.Completed: o.MarkCompleted(); break;
@@ -127,10 +134,14 @@ public class AdminOrderService(PallshoppenDbContext dbContext) : IAdminOrderServ
             case OrderStatus.Confirmed: o.MarkConfirmed(); break;
             case OrderStatus.Failed: o.MarkFailed(); break;
             case OrderStatus.Refunded: o.MarkRefunded(); break;
+
+            case OrderStatus.Pending:
+                return false;
+
             default: return false;
         }
 
-        await dbContext.SaveChangesAsync();
+        await dbContext.SaveChangesAsync(ct);
         return true;
     }
 }
