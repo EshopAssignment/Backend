@@ -1,8 +1,7 @@
 ﻿using Application.DTOs.Order;
 using Application.Interfaces;
 using Domain.Entities;
-using Domain.Factories;
-using Domain.ValueObjects;
+
 using Microsoft.EntityFrameworkCore;
 
 namespace Application.Assemblers;
@@ -13,67 +12,85 @@ public sealed class OrderAssembler(IAppDbContext dbContext)
 
     public async Task<Order> FromDtoAsync(CreateOrderRequestDto dto, string orderNumber, CancellationToken ct)
     {
-        if (dto.Items is null || dto.Items.Count == 0)
-            throw new InvalidOperationException("Order must contain at least one item.");
+        if (dto is null || dto.Items.Count == 0)
+            throw new InvalidOperationException("Order DTO is null or contains no items.");
 
-        var first = (dto.CustomerFirstName ?? "").Trim();
-        var last = (dto.CustomerLastName ?? "").Trim();
-        var email = (dto.CustomerEmail ?? "").Trim();
-        var phone = (dto.CustomerPhoneNumber ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(dto.CartId))
+            throw new Exception("Cart ID is required to create an order.");
 
-        if (first.Length == 0) throw new ArgumentException("CustomerFirstName required");
-        if (last.Length == 0) throw new ArgumentException("CustomerLastName required");
-        if (email.Length == 0) throw new ArgumentException("CustomerEmail required");
-        if (phone.Length == 0) throw new ArgumentException("CustomerPhoneNumber required");
 
-        var street = (dto.ShippingAddress.Street ?? "").Trim();
-        var zip = (dto.ShippingAddress.PostalCode ?? "").Trim();
-        var city = (dto.ShippingAddress.City ?? "").Trim();
-        var country = (dto.ShippingAddress.Country ?? "SE").Trim();
-
-        if (street.Length == 0) throw new ArgumentException("ShippingStreet required");
-        if (zip.Length == 0) throw new ArgumentException("ShippingPostalCode required");
-        if (city.Length == 0) throw new ArgumentException("ShippingCity required");
-
-        var shipping = new ShippingAddress(street, city, zip, country);
+        var currency = string.IsNullOrWhiteSpace(dto.Currency) ? "SEK" : dto.Currency.Trim().ToUpperInvariant();
 
         var byProduct = dto.Items
             .GroupBy(x => x.ProductId)
-            .Select(g => new { ProductId = g.Key, Qty = g.Sum(x => x.Quantity) })
-            .ToList();
+            .Select(g => new
+            {
+                ProductId = g.Key,
+                Qty = g.Sum(x => x.Quantity)
+            }).ToList();
+
+        if (byProduct.Any(x => x.ProductId <= 0))
+            throw new InvalidOperationException("Product Id must be valid");
 
         if (byProduct.Any(x => x.Qty <= 0))
-            throw new ArgumentOutOfRangeException(nameof(dto.Items), "Quantity must be > 0");
+            throw new InvalidOperationException("Quantity must be >= 1.");
 
-        var ids = byProduct.Select(x => x.ProductId).ToList();
+        var ids = byProduct.Select(x => x.ProductId).Distinct().ToList();
 
-        var products = await dbContext.Products
+        var products = await _db.Products
+            .AsNoTracking()
             .Where(p => ids.Contains(p.Id) && p.IsActive)
+            .Select(p => new
+            {
+                p.Id,
+                p.Name,
+                p.Sku,
+                p.PriceExVat,
+                p.VatRate
+            })
             .ToListAsync(ct);
 
         if (products.Count != ids.Count)
-            throw new InvalidOperationException("One or more products are invalid or inactive.");
+            throw new InvalidOperationException("One or more Products are invalid or Inactive");
 
-        var lines = byProduct
-            .Select(x =>
+        var order = new Order(orderNumber, currency);
+        order.SetCartId(dto.CartId);
+
+        var items = new List<OrderItem>(byProduct.Count);
+
+        foreach(var x in byProduct)
+        {
+            var p = products.First(pp => pp.Id == x.ProductId);
+
+            if (string.IsNullOrWhiteSpace(p.Name))
+                throw new InvalidOperationException("Product Name is missing productId={p.Id}.");
+
+            if (p.PriceExVat < 0)
+                throw new InvalidOperationException("Price is Invalid for productId={p.Id}");
+
+            if (p.VatRate < 0)
+                throw new InvalidOperationException("VatRate is productId={p.Id}.");
+
+            var lineTotal = p.PriceExVat * x.Qty;
+
+            items.Add(new OrderItem
             {
-                var p = products.First(pp => pp.Id == x.ProductId);
-                return (Product: p, Quantity: x.Qty);
-            })
-            .ToList();
+                ProductId = p.Id,
+                Sku = string.IsNullOrWhiteSpace(p.Sku) ? $"PID-{p.Id}" : p.Sku.Trim(),
+                ProductName = p.Name.Trim(),
+                UnitPrice = p.PriceExVat,
+                VatRate = p.VatRate,
+                Quantity = x.Qty,
+                LineTotal = lineTotal,
+            });
+        }
 
-        var order = OrderFactory.Create(
-            orderNumber: orderNumber,
-            shipping: shipping,
-            lines: lines,
-            shippingCost: 0m,
-            currency: "SEK"
-        );
+        order.ReplaceItems(items);
 
-        order.CustomerFirstName = first;
-        order.CustomerLastName = last;
-        order.CustomerEmail = email;
-        order.CustomerPhoneNumber = phone;
+        order.SetShippingCost(0m);
+
+        var taxTotal = items.Sum(i => i.LineTotal * i.LineTotal * i.VatRate);
+        order.SetTaxTotal(taxTotal);
 
         return order;
     }

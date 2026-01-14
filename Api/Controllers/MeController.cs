@@ -57,7 +57,7 @@ public class MeController(UserManager<User> users, AuthDbContext authContext) : 
 
         var u = await authContext.Users
             .Include(x => x.Profile)
-            .ThenInclude(p => p.Addresses)
+            .ThenInclude(p => p.Addresses!)
             .FirstOrDefaultAsync(x => x.Id == uid, ct);
 
         if (u is null) return Unauthorized();
@@ -81,7 +81,7 @@ public class MeController(UserManager<User> users, AuthDbContext authContext) : 
 
         var u = await authContext.Users
             .Include(x => x.Profile)
-            .ThenInclude(p => p.Addresses)
+            .ThenInclude(p => p.Addresses!)
             .FirstOrDefaultAsync(x => x.Id == uid, ct);
 
         if (u is null) return Unauthorized();

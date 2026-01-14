@@ -16,13 +16,12 @@ public class OrderService(PallshoppenDbContext dbContext, OrderAssembler assembl
     public async Task<OrderCreatedDto> CreateAsync(CreateOrderRequestDto dto, int? userId, CancellationToken ct)
     {
         if (dto.Items is null || dto.Items.Count == 0)
-            throw new InvalidOperationException("Must alteast have one item");
+            throw new InvalidOperationException("Must at least have one item");
 
         var orderNumber = await GenerateUniqueOrderNumberAsync(ct);
         var order = await assembler.FromDtoAsync(dto, orderNumber, ct);
 
         order.UserId = userId;
-        order.SetCartId(dto.CartId);
 
         var ttl = TimeSpan.FromMinutes(dto.ReservationTtlMinutes <= 0 ? 60 : dto.ReservationTtlMinutes);
         foreach (var i in dto.Items)
@@ -33,7 +32,7 @@ public class OrderService(PallshoppenDbContext dbContext, OrderAssembler assembl
         }
 
         dbContext.Orders.Add(order);
-                await dbContext.SaveChangesAsync(ct);
+        await dbContext.SaveChangesAsync(ct);
 
         return ToCreatedDto(order);
     }
@@ -138,15 +137,16 @@ public class OrderService(PallshoppenDbContext dbContext, OrderAssembler assembl
         o.TaxTotal,
         o.GrandTotal,
         o.OrderStatus,
-        o.Payment.Status, 
-        new ShippingAddressDto(
-            o.ShippingAddress.Street,
-            o.ShippingAddress.City,
-            o.ShippingAddress.PostalCode,
-            o.ShippingAddress.Country
-        ),
+        o.Payment.Status,
+        o.ShippingAddress is null
+            ? null
+            : new ShippingAddressDto(
+                o.ShippingAddress.Street,
+                o.ShippingAddress.City,
+                o.ShippingAddress.PostalCode,
+                o.ShippingAddress.Country
+            ),
         o.UserId
-
     );
 
     // Shipping selection

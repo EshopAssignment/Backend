@@ -1,5 +1,6 @@
 ﻿
 
+using System.ComponentModel.DataAnnotations.Schema;
 using Domain.Enums;
 using Domain.ValueObjects;
 
@@ -13,21 +14,38 @@ public class Order
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     // Customer Information
-    public string CustomerFirstName { get; set; } = null!;
-    public string CustomerLastName { get; set; } = null!;
-    public string CustomerEmail { get; set; } = null!;
-    public string CustomerPhoneNumber { get; set; } = null!;
+    public string? CustomerFirstName { get; set; }
+    public string? CustomerLastName { get; set; } 
+    public string? CustomerEmail { get; set; } 
+    public string? CustomerPhoneNumber { get; set; } 
+    
+    public void SetCustomer(string firstName, string lastName, string email, string? phone)
+    {
+        CustomerFirstName = firstName;
+        CustomerLastName = lastName;
+        CustomerEmail = email;
+        CustomerPhoneNumber = string.IsNullOrWhiteSpace(phone) ? null : phone.Trim();
+        Touch();
+    }
+    public void ClearCustomer()
+    {
+        CustomerFirstName = null;
+        CustomerLastName = null;
+        CustomerEmail = null;
+        CustomerPhoneNumber = null;
+        Touch();
+    }
 
     // Shipping Information
-    public ShippingAddress ShippingAddress { get; set; } = null!;
+    public ShippingAddress? ShippingAddress { get; set; }
     public OrderStatus OrderStatus { get; set; } = OrderStatus.Pending;
     public ShippingMethod ShippingMethod { get; set; } = ShippingMethod.None;
     public ShippingCarrier ShippingCarrier { get; set; } = ShippingCarrier.None;
-
     public string? ServicePointId { get; private set; }
     public string? ServicePointName { get; private set; }
     public string? ServicePointAddress { get; private set; }
 
+    //Currency and Totals
     public string Currency { get; private set; } = "SEK";
     public decimal ProductsSubtotal { get; private set; }  
     public decimal ShippingCost { get; private set; }
@@ -43,10 +61,9 @@ public class Order
     public ICollection<OrderItem> OrderItems { get; set; } = [];
     public OrderPayment Payment { get; private set; } = OrderPayment.Init("SEK");
     public Order() { }
-    public Order(string orderNumber, ShippingAddress shippingAdress, string currency = "SEK")
+    public Order(string orderNumber, string currency = "SEK")
     {
         OrderNumber = orderNumber;
-        ShippingAddress = shippingAdress;
         Currency = currency;
         Payment = OrderPayment.Init(currency);
     }
@@ -92,6 +109,11 @@ public class Order
     // Shipping Information Management
 
     public void SetShippingAddress(ShippingAddress address) { ShippingAddress = address; Touch(); }
+    public void ClearShippingAddress()
+    {
+        ShippingAddress = null;
+        Touch();
+    }
     public void SetShippingSelection(ShippingCarrier carrier, ShippingMethod method, decimal cost, string? servicePointId = null, string? sericePointName = null, string? servicePointAdress =null)
     {
         ShippingCarrier = carrier;
@@ -101,4 +123,28 @@ public class Order
         ServicePointAddress = servicePointAdress;
         SetShippingCost(cost);
     }
+
+
+    //readiness checks for gating
+    [NotMapped]
+
+    public bool CustomerReady => 
+        !string.IsNullOrWhiteSpace(CustomerFirstName)
+        && !string.IsNullOrWhiteSpace(CustomerLastName)
+        && !string.IsNullOrWhiteSpace(CustomerEmail);
+
+    [NotMapped]
+
+    public bool AddressReady =>
+        ShippingAddress is not null
+        && !string.IsNullOrWhiteSpace(ShippingAddress.Street)
+        && !string.IsNullOrWhiteSpace(ShippingAddress.City)
+        && !string.IsNullOrWhiteSpace(ShippingAddress.PostalCode)
+        && !string.IsNullOrWhiteSpace(ShippingAddress.Country);
+
+    [NotMapped]
+
+    public bool ShippingSelected =>
+        ShippingCarrier != ShippingCarrier.None
+        && ShippingMethod != ShippingMethod.None;
 }
