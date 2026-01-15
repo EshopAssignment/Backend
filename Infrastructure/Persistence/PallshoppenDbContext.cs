@@ -72,10 +72,10 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
 
         entity.Property(o => o.OrderNumber).HasMaxLength(32).IsRequired();
 
-        entity.Property(o => o.CustomerFirstName).HasMaxLength(100).IsRequired();
-        entity.Property(o => o.CustomerLastName).HasMaxLength(100).IsRequired();
-        entity.Property(o => o.CustomerEmail).HasMaxLength(200).IsRequired();
-        entity.Property(o => o.CustomerPhoneNumber).HasMaxLength(100).IsRequired();
+        entity.Property(o => o.CustomerFirstName).HasMaxLength(100).IsRequired(false);
+        entity.Property(o => o.CustomerLastName).HasMaxLength(100).IsRequired(false);
+        entity.Property(o => o.CustomerEmail).HasMaxLength(200).IsRequired(false);
+        entity.Property(o => o.CustomerPhoneNumber).HasMaxLength(100).IsRequired(false);
 
         entity.Property(o => o.OrderStatus).HasConversion<int>();
 
@@ -88,12 +88,14 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
         entity.Property(o => o.TaxTotal).HasPrecision(18, 2);
         entity.Property(o => o.GrandTotal).HasPrecision(18, 2);
 
+
+        entity.Navigation(o => o.ShippingAddress).IsRequired(false);
         entity.OwnsOne(o => o.ShippingAddress, a =>
         {
-            a.Property(p => p.Street).HasMaxLength(200).HasColumnName("ShippingStreet");
-            a.Property(p => p.PostalCode).HasMaxLength(20).HasColumnName("ShippingPostalCode");
-            a.Property(p => p.City).HasMaxLength(100).HasColumnName("ShippingCity");
-            a.Property(p => p.Country).HasMaxLength(100).HasColumnName("ShippingCountry");
+            a.Property(p => p.Street).HasMaxLength(200).HasColumnName("ShippingStreet").IsRequired(false);
+            a.Property(p => p.PostalCode).HasMaxLength(20).HasColumnName("ShippingPostalCode").IsRequired(false);
+            a.Property(p => p.City).HasMaxLength(100).HasColumnName("ShippingCity").IsRequired(false);
+            a.Property(p => p.Country).HasMaxLength(100).HasColumnName("ShippingCountry").IsRequired(false);
         });
 
         entity.OwnsOne(o => o.Payment, p =>

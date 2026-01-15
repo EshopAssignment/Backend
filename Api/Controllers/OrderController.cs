@@ -104,7 +104,7 @@ public class OrderController(IOrderService orderService) : ControllerBase
             var ok = await orderService.UpdateCustomerAsync(orderNumber, body, userId, ct);
             return ok ? NoContent() : NotFound();
         }
-        catch (InvalidComObjectException ex)
+        catch (InvalidOperationException ex)
         {
             return BadRequest(ex.Message);
         }
@@ -135,7 +135,7 @@ public class OrderController(IOrderService orderService) : ControllerBase
             var ok = await orderService.UpdateShippingAddressAsync(orderNumber, body, userId, ct);
             return ok ? NoContent() : NotFound();
         }
-        catch (InvalidComObjectException ex)
+        catch (InvalidOperationException ex)
         {
             return BadRequest(ex.Message);
         }

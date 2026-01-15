@@ -13,6 +13,16 @@ public sealed record OrderCreatedDto(
     decimal GrandTotal,
     OrderStatus OrderStatus,
     PaymentStatus PaymentStatus,
+
+    string? CustomerFirstName,
+    string? CustomerLastName,
+    string? CustomerEmail,
+    string? CustomerPhoneNumber,
+
     ShippingAddressDto? ShippingAddress,
+    ShippingCarrier ShippingCarrier,
+    ShippingMethod ShippingMethod,
+    string? ServicePointId,
+
     int? UserId
     );

@@ -19,6 +19,11 @@ public class Order
     public string? CustomerEmail { get; set; } 
     public string? CustomerPhoneNumber { get; set; } 
     
+    public void SetCustomerEmail(string email)
+    {
+        CustomerEmail = email;
+        Touch();
+    }
     public void SetCustomer(string firstName, string lastName, string email, string? phone)
     {
         CustomerFirstName = firstName;
