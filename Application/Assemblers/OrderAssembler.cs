@@ -63,13 +63,13 @@ public sealed class OrderAssembler(IAppDbContext dbContext)
             var p = products.First(pp => pp.Id == x.ProductId);
 
             if (string.IsNullOrWhiteSpace(p.Name))
-                throw new InvalidOperationException("Product Name is missing productId={p.Id}.");
+                throw new InvalidOperationException($"Product Name is missing productId={p.Id}.");
 
             if (p.PriceExVat < 0)
-                throw new InvalidOperationException("Price is Invalid for productId={p.Id}");
+                throw new InvalidOperationException($"Price is Invalid for productId={p.Id}");
 
             if (p.VatRate < 0)
-                throw new InvalidOperationException("VatRate is productId={p.Id}.");
+                throw new InvalidOperationException($"VatRate is productId={p.Id}.");
 
             var lineTotal = p.PriceExVat * x.Qty;
 
@@ -89,7 +89,7 @@ public sealed class OrderAssembler(IAppDbContext dbContext)
 
         order.SetShippingCost(0m);
 
-        var taxTotal = items.Sum(i => i.LineTotal * i.LineTotal * i.VatRate);
+        var taxTotal = items.Sum(i => i.LineTotal * i.VatRate);
         order.SetTaxTotal(taxTotal);
 
         return order;

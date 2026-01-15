@@ -1,5 +1,5 @@
 ﻿
-using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using Application.Assemblers;
 using Application.DTOs.Order;
 using Application.DTOs.Shipping;
@@ -12,9 +12,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Services;
 
-public class OrderService(PallshoppenDbContext dbContext, OrderAssembler assembler, IInventoryService inventoryService) : IOrderService
+public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authContext, OrderAssembler assembler, IInventoryService inventoryService) : IOrderService
 {
- 
+    private readonly PallshoppenDbContext _db = dbContext;
+    private readonly OrderAssembler _assembler = assembler;
+    private readonly IInventoryService _inventory = inventoryService;
+    private readonly AuthDbContext _authDb = authContext;
     //Order Tasks
     public async Task<OrderCreatedDto> CreateAsync(CreateOrderRequestDto dto, int? userId, CancellationToken ct)
     {
@@ -22,51 +25,118 @@ public class OrderService(PallshoppenDbContext dbContext, OrderAssembler assembl
             throw new InvalidOperationException("Must at least have one item");
 
         var orderNumber = await GenerateUniqueOrderNumberAsync(ct);
-        var order = await assembler.FromDtoAsync(dto, orderNumber, ct);
+        var order = await _assembler.FromDtoAsync(dto, orderNumber, ct);
 
         order.UserId = userId;
+
+        if (userId is not null)
+            await TryAutoFillFromUserAsync(order, userId.Value, ct);
 
         var ttl = TimeSpan.FromMinutes(dto.ReservationTtlMinutes <= 0 ? 60 : dto.ReservationTtlMinutes);
         foreach (var i in dto.Items)
         {
             var idempotency = $"{orderNumber}:{i.ProductId}";
-            var (ok, err) = await inventoryService.ReserveAsync(i.ProductId, i.Quantity, dto.CartId, idempotency, ttl, ct);
+            var (ok, err) = await _inventory.ReserveAsync(i.ProductId, i.Quantity, dto.CartId, idempotency, ttl, ct);
             if (!ok) throw new InvalidOperationException(err ?? "INSUFFICIENT_AVAILABLE");
         }
 
-        dbContext.Orders.Add(order);
-        await dbContext.SaveChangesAsync(ct);
+        _db.Orders.Add(order);
+        await _db.SaveChangesAsync(ct);
 
         return ToCreatedDto(order);
     }
+
+    private async Task TryAutoFillFromUserAsync(Order order, int userId, CancellationToken ct)
+    {
+        var u = await _authDb.Users
+            .AsNoTracking()
+            .Include(x => x.Profile)
+            .ThenInclude(p => p.Addresses!)
+            .FirstOrDefaultAsync(x => x.Id == userId, ct);
+
+        if (u is null) return;
+
+        var email = u.Email?.Trim();
+        if (string.IsNullOrWhiteSpace(email)) return;
+
+        var first = (u.Profile?.FirstName ?? "").Trim();
+        var last = (u.Profile?.LastName ?? "").Trim();
+        var phone = string.IsNullOrWhiteSpace(u.Profile?.Phone) ? null : u.Profile!.Phone.Trim();
+
+
+        order.SetCustomerEmail(email);
+
+        if (!string.IsNullOrWhiteSpace(first) && !string.IsNullOrWhiteSpace(last))
+        {
+            order.SetCustomer(first, last, email, phone);
+        }
+        else
+        {
+            if (!string.IsNullOrWhiteSpace(first)) order.CustomerFirstName = first;
+            if (!string.IsNullOrWhiteSpace(last)) order.CustomerLastName = last;
+            if (!string.IsNullOrWhiteSpace(phone)) order.CustomerPhoneNumber = phone;
+
+        }
+
+        if (order.ShippingAddress is not null)
+            return;
+
+        var profile = u.Profile;
+        var addresses = profile?.Addresses?
+            .Where(a => a is not null && !a.IsDeleted)
+            .ToList();
+
+        if (addresses is null || addresses.Count == 0)
+            return;
+
+        var chosen = profile?.DefaultShippingAddressId is int defIdf
+            ? addresses.FirstOrDefault(a => a.Id == defIdf) ?? addresses[0]
+            : addresses[0];
+
+        var street = (chosen.Street ?? "").Trim();
+        var city = (chosen.City ?? "").Trim();
+        var postal = (chosen.PostalCode ?? "").Trim().Replace(" ", "");
+        var country = string.IsNullOrWhiteSpace(chosen.Country) ? "SE" : chosen.Country.Trim().ToUpperInvariant();
+
+        if (street.Length == 0 || city.Length == 0 || postal.Length == 0)
+            return;
+
+        order.SetShippingAddress(new ShippingAddress(
+            street: street,
+            city: city,
+            postalCode: postal,
+            country: country
+            ));
+    }
+
     public async Task<OrderCreatedDto?> GetByIdAsync(int id, CancellationToken ct)
     {
-        var o = await dbContext.Orders.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
+        var o = await _db.Orders.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
         return o is null ? null : ToCreatedDto(o);
     }
     public async Task<OrderCreatedDto?> GetByNumberAsync(string orderNumber, CancellationToken ct)
     {
-        var o = await dbContext.Orders.AsNoTracking().FirstOrDefaultAsync(x => x.OrderNumber == orderNumber, ct);
+        var o = await _db.Orders.AsNoTracking().FirstOrDefaultAsync(x => x.OrderNumber == orderNumber, ct);
         return o is null ? null : ToCreatedDto(o);
     }
 
     //Stripe payment status updates
     public async Task<bool> MarkPaymentAuthorizedAsync(string orderNumber, string paymentIntentId, string? latestChargeId, string? methodType, decimal amount,string cartId, CancellationToken ct)
     {
-        var order = await dbContext.Orders
+        var order = await _db.Orders
             .Include(o => o.OrderItems)
             .FirstOrDefaultAsync(o => o.OrderNumber == orderNumber, ct);
         if (order is null) return false;
 
-        var (ok, _) = await inventoryService.ConfirmOrderFromCartAsync(cartId, paymentIntentId, ct);
+        var (ok, _) = await _inventory.ConfirmOrderFromCartAsync(cartId, paymentIntentId, ct);
 
         if (!ok)
         {
-            await using var tx = await dbContext.Database.BeginTransactionAsync(ct);
+            await using var tx = await _db.Database.BeginTransactionAsync(ct);
             foreach (var g in order.OrderItems.GroupBy(i => i.ProductId))
             {
                 var qty = g.Sum(x => x.Quantity);
-                var affected = await dbContext.Database.ExecuteSqlRawAsync(
+                var affected = await _db.Database.ExecuteSqlRawAsync(
                         "UPDATE [core].[Products] SET OnHand = OnHand - {0}, Reserved = Reserved - {0} " +
                         "WHERE Id = {1} AND OnHand >= {0} AND Reserved >= {0}",
                     [qty, g.Key], ct);
@@ -76,7 +146,7 @@ public class OrderService(PallshoppenDbContext dbContext, OrderAssembler assembl
                     await tx.RollbackAsync(ct);
                     order.Payment.MarkFailed();
                     order.MarkFailed();
-                    await dbContext.SaveChangesAsync(ct);
+                    await _db.SaveChangesAsync(ct);
                     return false;
                 }
             }
@@ -85,28 +155,28 @@ public class OrderService(PallshoppenDbContext dbContext, OrderAssembler assembl
 
         order.Payment.MarkAuthorized(paymentIntentId, latestChargeId, amount, methodType, DateTime.UtcNow);
         order.MarkConfirmed();
-        await dbContext.SaveChangesAsync(ct);
+        await _db.SaveChangesAsync(ct);
         return true;
     }
     public async Task<bool> MarkPaymentFailedAsync(string orderNumber, CancellationToken ct)
     {
-        var order = await dbContext.Orders.FirstOrDefaultAsync(o => o.OrderNumber == orderNumber, ct);
+        var order = await _db.Orders.FirstOrDefaultAsync(o => o.OrderNumber == orderNumber, ct);
         if (order is null) return false;
 
         order.Payment.MarkFailed();
         order.MarkFailed();
-        await dbContext.SaveChangesAsync(ct);
+        await _db.SaveChangesAsync(ct);
         return true;
     }
     public async Task<bool> MarkRefundedAsync(string orderNumber, decimal amount, CancellationToken ct)
     {
-        var oder = await dbContext.Orders.FirstOrDefaultAsync(o => o.OrderNumber == orderNumber, ct);
+        var oder = await _db.Orders.FirstOrDefaultAsync(o => o.OrderNumber == orderNumber, ct);
         if (oder is null) return false;
 
         oder.Payment.MarkRefunded(amount, DateTime.UtcNow);
         oder.MarkRefunded();
 
-        await dbContext.SaveChangesAsync(ct);
+        await _db.SaveChangesAsync(ct);
         return true;
     }
     
@@ -116,7 +186,7 @@ public class OrderService(PallshoppenDbContext dbContext, OrderAssembler assembl
         for (var i = 0; i < 3; i++)
         {
             var candidate = GenerateOrderNumber();
-            var exists = await dbContext.Orders.AsNoTracking().AnyAsync(o => o.OrderNumber == candidate, ct);
+            var exists = await _db.Orders.AsNoTracking().AnyAsync(o => o.OrderNumber == candidate, ct);
             if (!exists) return candidate;
         }
         return $"ORD-{DateTime.UtcNow:yyyyMMddHHmmssfff}-{Guid.NewGuid():N}".ToUpperInvariant();
@@ -141,6 +211,12 @@ public class OrderService(PallshoppenDbContext dbContext, OrderAssembler assembl
         o.GrandTotal,
         o.OrderStatus,
         o.Payment.Status,
+
+        o.CustomerFirstName,
+        o.CustomerLastName,
+        o.CustomerEmail,
+        o.CustomerPhoneNumber,
+
         o.ShippingAddress is null
             ? null
             : new ShippingAddressDto(
@@ -149,13 +225,18 @@ public class OrderService(PallshoppenDbContext dbContext, OrderAssembler assembl
                 o.ShippingAddress.PostalCode,
                 o.ShippingAddress.Country
             ),
+        o.ShippingCarrier,
+        o.ShippingMethod,
+        o.ServicePointId,
+
         o.UserId
     );
+
 
     // Shipping selection
     public async Task<bool> SetShippingSelectionAsync(string orderNumber, SetShippingSelectionDto dto, CancellationToken ct)
     {
-        var order = await dbContext.Orders
+        var order = await _db.Orders
             .Include(o => o.OrderItems)
             .FirstOrDefaultAsync(o => o.OrderNumber == orderNumber, ct);
 
@@ -182,7 +263,7 @@ public class OrderService(PallshoppenDbContext dbContext, OrderAssembler assembl
             dto.ServicePointId
         );
 
-        await dbContext.SaveChangesAsync(ct);
+        await _db.SaveChangesAsync(ct);
         return true;
     }
 
@@ -192,7 +273,7 @@ public class OrderService(PallshoppenDbContext dbContext, OrderAssembler assembl
     {
         if (string.IsNullOrWhiteSpace(orderNumber))
             throw new InvalidOperationException("OrderNumber is REquired");
-        var order = await dbContext.Orders.FirstOrDefaultAsync(o => o.OrderNumber == orderNumber, ct);
+        var order = await _db.Orders.FirstOrDefaultAsync(o => o.OrderNumber == orderNumber, ct);
         if (order is null) return false;
 
         EnsureCanEdit(order, userId);
@@ -208,7 +289,7 @@ public class OrderService(PallshoppenDbContext dbContext, OrderAssembler assembl
 
         order.SetCustomer(first, last, email, phone);
 
-        await dbContext.SaveChangesAsync(ct);
+        await _db.SaveChangesAsync(ct);
         return true;
 
     }
@@ -218,7 +299,7 @@ public class OrderService(PallshoppenDbContext dbContext, OrderAssembler assembl
         if (string.IsNullOrWhiteSpace(orderNumber))
             throw new InvalidOperationException("Ordernumber is required");
 
-        var order = await dbContext.Orders.FirstOrDefaultAsync(o => o.OrderNumber == orderNumber, ct);
+        var order = await _db.Orders.FirstOrDefaultAsync(o => o.OrderNumber == orderNumber, ct);
         if (order is null) return false;
 
         EnsureCanEdit(order, userId);
@@ -240,7 +321,7 @@ public class OrderService(PallshoppenDbContext dbContext, OrderAssembler assembl
             postalCode: postal,
             country: country));
 
-        await dbContext.SaveChangesAsync(ct);
+        await _db.SaveChangesAsync(ct);
         return true;
     }
 
