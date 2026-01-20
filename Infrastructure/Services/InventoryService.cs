@@ -136,8 +136,11 @@ public class InventoryService(PallshoppenDbContext dbContext) : IInventoryServic
             var qty = g.Sum(x => x.Quantity);
 
             var affected = await dbContext.Database.ExecuteSqlRawAsync(
-                "UPDATE Products SET OnHand = OnHand - {0}, Reserved = Reserved - {0} WHERE Id = {1} AND OnHand >= {0} AND Reserved >= {0}",
+                "UPDATE [core].[Products] " +
+                "SET OnHand = OnHand - {0}, Reserved = Reserved - {0} " +
+                "WHERE Id = {1} AND OnHand >= {0} AND Reserved >= {0}",
                 [qty, g.Key], ct);
+
 
             if (affected == 0)
             {
