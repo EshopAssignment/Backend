@@ -19,4 +19,6 @@ public interface IOrderService
 
     Task<bool> UpdateCustomerAsync(string orderNumber, UpdateOrderCustomerDto dto, int? userId, CancellationToken ct);
     Task<bool> UpdateShippingAddressAsync(string orderNumber, UpdateOrderShippingAddressDto dto, int? userId, CancellationToken ct);
+
+    Task<IReadOnlyList<MyOrderListItemDto>> GetMyOrdersAsync(int userId, int skip, int take, CancellationToken ct);
 }

@@ -120,6 +120,30 @@ public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authCont
         return o is null ? null : ToCreatedDto(o);
     }
 
+    public async Task<IReadOnlyList<MyOrderListItemDto>> GetMyOrdersAsync(int userId, int skip, int take, CancellationToken ct)
+    {
+        if (skip < 0) skip = 0;
+        if (take <= 0) take = 20;
+        if (take > 100) take = 100;
+
+        return await _db.Orders
+            .AsNoTracking()
+            .Where(o => o.UserId == userId)
+            .OrderByDescending(o => o.CreatedAt)
+            .Skip(skip)
+            .Take(take)
+            .Select(o => new MyOrderListItemDto(
+               
+                o.CreatedAt,
+                o.OrderNumber,
+                o.OrderStatus,
+                o.GrandTotal,
+                TrackingUrl: null,
+                ReceiptUrl: null
+            ))
+            .ToListAsync(ct);
+    }
+
     //Stripe payment status updates
     public async Task<bool> MarkPaymentAuthorizedAsync(string orderNumber, string paymentIntentId, string? latestChargeId, string? methodType, decimal amount,string cartId, CancellationToken ct)
     {
@@ -335,4 +359,6 @@ public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authCont
         if (order.UserId is not null && userId != order.UserId)
             throw new InvalidOperationException("Not allowed");
     }
+
+
 }

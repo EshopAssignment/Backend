@@ -1,4 +1,7 @@
-﻿using Application.DTOs.Auth;
+﻿using System.Security.Claims;
+using Application.DTOs.Auth;
+using Application.DTOs.Order;
+using Application.Interfaces;
 using Domain.Entities.Identity;
 using Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
@@ -11,19 +14,19 @@ namespace Api.Controllers;
 [ApiController]
 [Route("api/me")]
 [Authorize]
-public class MeController(UserManager<User> users, AuthDbContext authContext) : ControllerBase
+public class MeController(UserManager<User> users, AuthDbContext authContext, IOrderService orderService) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<MeDto>> GetProfile(CancellationToken ct)
     {
-        if (!int.TryParse(users.GetUserId(User), out var uid))
-            return Unauthorized();
+        var uid = GetUserId();
+        if (uid is null) return Unauthorized();
 
         var u = await authContext.Users
             .AsNoTracking()
             .Include(x => x.Profile)
             .ThenInclude(p => p.Addresses)
-            .FirstOrDefaultAsync(x => x.Id == uid, ct);
+            .FirstOrDefaultAsync(x => x.Id == uid.Value, ct);
 
         if (u is null) return Unauthorized();
 
@@ -52,13 +55,13 @@ public class MeController(UserManager<User> users, AuthDbContext authContext) : 
     [HttpPut("profile")]
     public async Task<IActionResult> UpdateProfile(UpdateProfileDto dto, CancellationToken ct)
     {
-        if (!int.TryParse(users.GetUserId(User), out var uid))
-            return Unauthorized();
+        var uid = GetUserId();
+        if (uid is null) return Unauthorized();
 
         var u = await authContext.Users
             .Include(x => x.Profile)
             .ThenInclude(p => p.Addresses!)
-            .FirstOrDefaultAsync(x => x.Id == uid, ct);
+            .FirstOrDefaultAsync(x => x.Id == uid.Value, ct);
 
         if (u is null) return Unauthorized();
 
@@ -76,13 +79,13 @@ public class MeController(UserManager<User> users, AuthDbContext authContext) : 
     [HttpPost("addresses")]
     public async Task<IActionResult> AddAddress(UpsertAddressDto dto, CancellationToken ct)
     {
-        if (!int.TryParse(users.GetUserId(User), out var uid))
-            return Unauthorized();
+        var uid = GetUserId();
+        if (uid is null) return Unauthorized();
 
         var u = await authContext.Users
             .Include(x => x.Profile)
             .ThenInclude(p => p.Addresses!)
-            .FirstOrDefaultAsync(x => x.Id == uid, ct);
+            .FirstOrDefaultAsync(x => x.Id == uid.Value, ct);
 
         if (u is null) return Unauthorized();
 
@@ -107,12 +110,12 @@ public class MeController(UserManager<User> users, AuthDbContext authContext) : 
     [HttpPatch("profile/default-address")]
     public async Task<IActionResult> SetDefaultAddress(SetDefaultAddressDto dto, CancellationToken ct)
     {
-        if (!int.TryParse(users.GetUserId(User), out var uid))
-            return Unauthorized();
+        var uid = GetUserId();
+        if (uid is null) return Unauthorized();
 
         var u = await authContext.Users
             .Include(x => x.Profile)
-            .FirstOrDefaultAsync(x => x.Id == uid, ct);
+            .FirstOrDefaultAsync(x => x.Id == uid.Value, ct);
 
         if (u is null) return Unauthorized();
 
@@ -121,5 +124,32 @@ public class MeController(UserManager<User> users, AuthDbContext authContext) : 
 
         await authContext.SaveChangesAsync(ct);
         return NoContent();
+    }
+
+
+    [HttpGet("orders")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(IReadOnlyList<MyOrderListItemDto>))]
+    public async Task<ActionResult<IReadOnlyList<MyOrderListItemDto>>> GetMyOrders(
+    [FromQuery] int skip = 0,
+    [FromQuery] int take = 20,
+    CancellationToken ct = default)
+    {
+        var uid = GetUserId();
+        if (uid is null) return Unauthorized();
+
+        var orders = await orderService.GetMyOrdersAsync(uid.Value, skip, take, ct);
+        return Ok(orders);
+    }
+
+    //Helper (parse user id)
+    private int? GetUserId()
+    {
+        if (User?.Identity?.IsAuthenticated != true) return null;
+
+        var idStr =
+            User.FindFirstValue(ClaimTypes.NameIdentifier) ??
+            User.FindFirstValue("sub");
+
+        return int.TryParse(idStr, out var parsed) ? parsed : null;
     }
 }
