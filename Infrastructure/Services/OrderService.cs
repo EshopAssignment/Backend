@@ -129,6 +129,7 @@ public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authCont
         return await _db.Orders
             .AsNoTracking()
             .Where(o => o.UserId == userId)
+            .Where(o => o.OrderStatus != OrderStatus.Pending)
             .OrderByDescending(o => o.CreatedAt)
             .Skip(skip)
             .Take(take)
