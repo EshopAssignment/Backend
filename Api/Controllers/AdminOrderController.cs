@@ -46,4 +46,17 @@ public class AdminOrderController(IAdminOrderService adminOrderService) : Contro
         return ok ? NoContent() : NotFound();
     }
 
+    [HttpPatch("{id:int}/tracking")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+
+    public async Task<IActionResult> SetTracking(int id, [FromBody] AdminSetTrackingRequest body, CancellationToken ct = default)
+    {
+        var ok = await adminOrderService.SetTrackingAsync(id, body.TrackingNumber, body.MarkAsShipped,  ct);
+        if (string.IsNullOrWhiteSpace(body.TrackingNumber))
+            return BadRequest("TrackingNumber is required.");
+
+        return ok ? NoContent() : NotFound();
+    }
 }

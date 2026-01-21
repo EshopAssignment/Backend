@@ -139,7 +139,9 @@ public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authCont
                 o.OrderNumber,
                 o.OrderStatus,
                 o.GrandTotal,
-                TrackingUrl: null,
+                TrackingUrl: o.TrackingNumber == null 
+                ? null
+                : $"https://tracking.postnord.com/?id={Uri.EscapeDataString(o.TrackingNumber)}",
                 ReceiptUrl: null
             ))
             .ToListAsync(ct);

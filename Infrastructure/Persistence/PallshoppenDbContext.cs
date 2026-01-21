@@ -85,6 +85,7 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
         entity.Property(o => o.Currency).HasMaxLength(3).IsRequired();
         entity.Property(o => o.ProductsSubtotal).HasPrecision(18, 2);
         entity.Property(o => o.ShippingCost).HasPrecision(18, 2);
+        entity.Property(o => o.TrackingNumber).HasMaxLength(100).IsRequired(false);
         entity.Property(o => o.TaxTotal).HasPrecision(18, 2);
         entity.Property(o => o.GrandTotal).HasPrecision(18, 2);
 
