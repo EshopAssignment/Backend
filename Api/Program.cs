@@ -1,24 +1,24 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using Application.Assemblers;
 using Application.Interfaces;
 using Application.Interfaces.Auth;
 using Domain.Entities.Identity;
 using Domain.Stripe;
 using Infrastructure.Auth;
+using Infrastructure.Options;
 using Infrastructure.Persistence;
 using Infrastructure.Seed;
 using Infrastructure.Services;
-using InfrastructureProductService = Infrastructure.Services.ProductService;
-using InfrastructureTokenService = Infrastructure.Services.TokenService;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
-
 using Scalar.AspNetCore;
 using Stripe;
-using Infrastructure.Options;
-using Microsoft.Extensions.Options;
+using InfrastructureProductService = Infrastructure.Services.ProductService;
+using InfrastructureTokenService = Infrastructure.Services.TokenService;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,7 +32,14 @@ builder.Services.AddCors(o =>
     )
 );
 //Add Controllers & OpenApi
-builder.Services.AddControllers();
+
+builder.Services
+    .AddControllers()
+    .AddJsonOptions(o =>
+    {
+        o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
 
