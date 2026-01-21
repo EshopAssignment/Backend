@@ -51,6 +51,9 @@ public sealed record AdminOrderDetailsDto(
     decimal TaxTotal,
     decimal GrandTotal,
 
+    string? TrackingNumber,
+    string? TackingUrl,
+
     IReadOnlyList<AdminOrderItemDto> Items
 
 );

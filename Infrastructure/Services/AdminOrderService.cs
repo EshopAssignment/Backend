@@ -91,6 +91,10 @@ public class AdminOrderService(PallshoppenDbContext dbContext) : IAdminOrderServ
         var postal = o.ShippingAddress?.PostalCode ?? string.Empty;
         var city = o.ShippingAddress?.City ?? string.Empty;
         var country = o.ShippingAddress?.Country ?? string.Empty;
+        var trackingNumber = o.TrackingNumber;
+        var trackingUrl = string.IsNullOrWhiteSpace(trackingNumber)
+            ? null
+            : $"https://tracking.postnord.com/?id={Uri.EscapeDataString(trackingNumber)}";
 
         return new AdminOrderDetailsDto(
             Id: o.Id,
@@ -113,6 +117,8 @@ public class AdminOrderService(PallshoppenDbContext dbContext) : IAdminOrderServ
             ShippingCost: o.ShippingCost,
             TaxTotal: o.TaxTotal,
             GrandTotal: o.GrandTotal,
+            TrackingNumber: trackingNumber,
+            TackingUrl: trackingUrl,
             Items: items
         );
     }
