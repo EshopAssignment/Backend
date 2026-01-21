@@ -103,6 +103,7 @@ builder.Services.AddSingleton(_ => new Stripe.StripeClient(secretKey));
 
 //Register HostedService(Background seeder)
 builder.Services.AddHostedService<DatabaseInitializerHostedService>();
+builder.Services.AddHostedService<PendingCleanupService>();
 
 //Token Service
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
