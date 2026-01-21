@@ -49,6 +49,19 @@ public class Order
     public string? ServicePointId { get; private set; }
     public string? ServicePointName { get; private set; }
     public string? ServicePointAddress { get; private set; }
+    public string? TrackingNumber { get; private set; }
+
+    public void SetTracking(string trackingNumber)
+    {
+        TrackingNumber = string.IsNullOrWhiteSpace(trackingNumber) ? null : trackingNumber.Trim();
+        Touch();
+    }
+
+    public void ClearTrackingNumber()
+    {
+        TrackingNumber = null;
+        Touch();
+    }
 
     //Currency and Totals
     public string Currency { get; private set; } = "SEK";

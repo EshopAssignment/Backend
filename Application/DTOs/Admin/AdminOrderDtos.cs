@@ -57,3 +57,7 @@ public sealed record AdminOrderDetailsDto(
 
 public sealed record AdminUpdateOrderStatusRequest(OrderStatus OrderStatus);
 
+public sealed record AdminSetTrackingRequest(
+    string TrackingNumber,
+    bool MarkAsShipped = true);
+

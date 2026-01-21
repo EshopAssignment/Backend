@@ -144,4 +144,21 @@ public class AdminOrderService(PallshoppenDbContext dbContext) : IAdminOrderServ
         await dbContext.SaveChangesAsync(ct);
         return true;
     }
+
+    public async Task<bool> SetTrackingAsync(int id, string trackingNumber, bool markAsShipped, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(trackingNumber))
+            return false;
+
+        var o = await dbContext.Orders.FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (o is null) return false;
+
+        o.SetTracking(trackingNumber);
+
+        if (markAsShipped)
+            o.MarkShipped();
+
+        await dbContext.SaveChangesAsync(ct);
+        return true;
+    }
 }
