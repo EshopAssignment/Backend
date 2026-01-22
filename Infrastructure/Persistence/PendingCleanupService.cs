@@ -59,8 +59,9 @@ public sealed class PendingCleanupService(IServiceScopeFactory scopeFactory, ILo
             }
             catch (Exception ex)
             {
-                log.LogError("Cleanup Failed");
+                log.LogError(ex, "Cleanup failed");
             }
+
 
             await Task.Delay(Interval, ct);
         }
