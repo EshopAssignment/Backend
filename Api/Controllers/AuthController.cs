@@ -24,18 +24,23 @@ public class AuthController : ControllerBase
     [HttpPost("register")]
     public async Task<IActionResult> Register(RegisterDto dto)
     {
+        var email = dto.Email.Trim().ToLowerInvariant();
+
         var user = new User
         {
-            UserName = dto.Email,
-            Email = dto.Email,
-            DisplayName = dto.DisplayName
+            UserName = email,
+            Email = email,
+            DisplayName = dto.DisplayName.Trim()
         };
 
         var res = await _user.CreateAsync(user, dto.Password);
-        if (!res.Succeeded) return BadRequest(res.Errors);
+        if (!res.Succeeded)
+            return ValidationProblem(new ValidationProblemDetails(
+                res.Errors.GroupBy(e => e.Code)
+                    .ToDictionary(g => g.Key, g => g.Select(x => x.Description).ToArray())
+            ));
 
         await _user.AddToRoleAsync(user, "User");
-
 
         var exists = await _authContext.UserProfiles.FindAsync(user.Id);
         if (exists is null)
@@ -58,7 +63,9 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginDto dto)
     {
-        var user = await _user.FindByEmailAsync(dto.Email);
+        var email = dto.Email.Trim().ToLowerInvariant();
+
+        var user = await _user.FindByEmailAsync(email);
         if (user is null) return Unauthorized();
 
         var res = await _signInManager.CheckPasswordSignInAsync(user, dto.Password, lockoutOnFailure: true);
