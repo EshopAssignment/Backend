@@ -67,9 +67,9 @@ public class MeController(UserManager<User> users, AuthDbContext authContext, IO
 
         u.Profile ??= new UserProfile { UserId = u.Id };
 
-        u.Profile.FirstName = dto.FirstName?.Trim() ?? "";
-        u.Profile.LastName = dto.LastName?.Trim() ?? "";
-        u.Profile.Phone = dto.Phone?.Trim() ?? "";
+        u.Profile.FirstName = dto.FirstName.Trim();
+        u.Profile.LastName = dto.LastName.Trim();
+        u.Profile.Phone = (dto.Phone ?? "").Trim();
         u.Profile.DefaultShippingAddressId = dto.DefaultShippingAddressId;
 
         await authContext.SaveChangesAsync(ct);
@@ -91,13 +91,15 @@ public class MeController(UserManager<User> users, AuthDbContext authContext, IO
 
         u.Profile ??= new UserProfile { UserId = u.Id };
 
+        var postal = (dto.PostalCode ?? "").Trim().Replace(" ", "");
+
         var a = new UserAddress
         {
             UserId = u.Id,
             Label = string.IsNullOrWhiteSpace(dto.Label) ? "Home" : dto.Label.Trim(),
             Street = dto.Street?.Trim() ?? "",
             City = dto.City?.Trim() ?? "",
-            PostalCode = dto.PostalCode?.Trim() ?? "",
+            PostalCode = postal,
             Country = (dto.Country?.Trim() ?? "SE").ToUpperInvariant()
         };
 

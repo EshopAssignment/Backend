@@ -43,7 +43,7 @@ public sealed record UpdateProfileDto(
 public sealed record UpsertAddressDto(
 
     [property: StringLength(50)]
-    string Label,
+    string? Label,
 
     [property: Required, StringLength(60, MinimumLength = 1)]
     string Street,
