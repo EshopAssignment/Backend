@@ -115,13 +115,26 @@ public class MeController(UserManager<User> users, AuthDbContext authContext, IO
 
         var u = await authContext.Users
             .Include(x => x.Profile)
+            .ThenInclude(p => p.Addresses!)
             .FirstOrDefaultAsync(x => x.Id == uid.Value, ct);
 
         if (u is null) return Unauthorized();
 
         u.Profile ??= new UserProfile { UserId = u.Id };
-        u.Profile.DefaultShippingAddressId = dto.DefaultShippingAddressId;
 
+        if (dto.DefaultShippingAddressId is not null)
+        {
+            var exists = u.Profile.Addresses.Any(a =>
+                a.Id == dto.DefaultShippingAddressId.Value && !a.IsDeleted);
+
+            if (!exists)
+            {
+                ModelState.AddModelError(nameof(dto.DefaultShippingAddressId), "Address does not exist.");
+                return ValidationProblem(ModelState);
+            }
+        }
+
+        u.Profile.DefaultShippingAddressId = dto.DefaultShippingAddressId;
         await authContext.SaveChangesAsync(ct);
         return NoContent();
     }

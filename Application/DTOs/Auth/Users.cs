@@ -1,4 +1,6 @@
 ﻿
+using System.ComponentModel.DataAnnotations;
+
 namespace Application.DTOs.Auth;
 
 public sealed record MeDto(
@@ -25,16 +27,34 @@ public sealed record UserAddressDto(
     );
 
 public sealed record UpdateProfileDto(
+
+    [property: Required, StringLength(50, MinimumLength = 1)]
     string FirstName,
+
+    [property: Required, StringLength(50, MinimumLength = 1)]
     string LastName,
-    string Phone,
+
+    [property: RegularExpression(@"^$|^[0-9+\-\s]{6,20}$", ErrorMessage = "Phone must be valid.")]
+    string? Phone,
+
     int? DefaultShippingAddressId
     );
-public sealed record UpsertAddressDto
-    (string Label,
+
+public sealed record UpsertAddressDto(
+
+    [property: StringLength(50)]
+    string Label,
+
+    [property: Required, StringLength(60, MinimumLength = 1)]
     string Street,
+
+    [property: Required, StringLength(60, MinimumLength = 1)]
     string City,
+
+    [property: Required, RegularExpression(@"^\d{5}$", ErrorMessage = "PostalCode must be 5 digits.")]
     string PostalCode,
-    string Country
+
+    [property: RegularExpression(@"^[A-Za-z]{2}$", ErrorMessage = "Country must land code")]
+    string? Country
     );
 public sealed record SetDefaultAddressDto(int? DefaultShippingAddressId);
