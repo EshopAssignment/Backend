@@ -156,6 +156,18 @@ public class MeController(UserManager<User> users, AuthDbContext authContext, IO
         return Ok(orders);
     }
 
+    [HttpGet("orders/{orderNumber}")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(OrderCreatedDto))]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetMyOrderByNumber(string orderNumber, CancellationToken ct = default)
+    {
+        var uid = GetUserId();
+        if(uid is null) return Unauthorized();
+
+        var dto = await orderService.GetMyOrderByNumberAsync(uid.Value, orderNumber, ct);
+        return dto is null? NotFound() : Ok(dto);
+    }
+
     //Helper (parse user id)
     private int? GetUserId()
     {
