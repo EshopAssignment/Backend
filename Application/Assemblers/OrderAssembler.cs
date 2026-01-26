@@ -1,4 +1,5 @@
-﻿using Application.DTOs.Order;
+﻿using Application.DTOs.Admin;
+using Application.DTOs.Order;
 using Application.Interfaces;
 using Domain.Entities;
 
@@ -94,4 +95,85 @@ public sealed class OrderAssembler(IAppDbContext dbContext)
 
         return order;
     }
+
+    public OrderDetailsDto ToDetailsDto(Order o) =>
+        new(
+            o.Id,
+            o.OrderNumber,
+            o.CreatedAt,
+            o.Currency,
+            o.ProductsSubtotal,
+            o.ShippingCost,
+            o.TaxTotal,
+            o.GrandTotal,
+            o.OrderStatus,
+            o.Payment.Status,
+
+            o.CustomerFirstName,
+            o.CustomerLastName,
+            o.CustomerEmail,
+            o.CustomerPhoneNumber,
+
+            o.ShippingAddress is null ? null : new ShippingAddressDto(
+                o.ShippingAddress.Street,
+                o.ShippingAddress.City,
+                o.ShippingAddress.PostalCode,
+                o.ShippingAddress.Country
+            ),
+            o.ShippingCarrier,
+            o.ShippingMethod,
+            o.ServicePointId,
+
+            o.TrackingNumber,
+            o.TrackingNumber is null
+                ? null
+                : $"https://tracking.postnord.com/?id={Uri.EscapeDataString(o.TrackingNumber)}",
+
+            o.OrderItems
+                .Select(i => new OrderItemDto(
+                    i.ProductId,
+                    i.ProductName,
+                    i.Quantity,
+                    i.UnitPrice,
+                    i.LineTotal
+                ))
+                .ToList(),
+
+            o.UserId
+        );
+
+
+    //move to factory later. 
+    public OrderCreatedDto ToCreatedDto(Order o) =>
+    new(
+        o.Id,
+        o.OrderNumber,
+        o.CreatedAt,
+        o.Currency,
+        o.ProductsSubtotal,
+        o.ShippingCost,
+        o.TaxTotal,
+        o.GrandTotal,
+        o.OrderStatus,
+        o.Payment.Status,
+
+        o.CustomerFirstName,
+        o.CustomerLastName,
+        o.CustomerEmail,
+        o.CustomerPhoneNumber,
+
+        o.ShippingAddress is null
+            ? null
+            : new ShippingAddressDto(
+                o.ShippingAddress.Street,
+                o.ShippingAddress.City,
+                o.ShippingAddress.PostalCode,
+                o.ShippingAddress.Country
+            ),
+        o.ShippingCarrier,
+        o.ShippingMethod,
+        o.ServicePointId,
+
+        o.UserId
+    );
 }

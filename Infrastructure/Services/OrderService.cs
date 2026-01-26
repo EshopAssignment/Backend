@@ -43,7 +43,7 @@ public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authCont
         _db.Orders.Add(order);
         await _db.SaveChangesAsync(ct);
 
-        return ToCreatedDto(order);
+        return _assembler.ToCreatedDto(order);
     }
 
     private async Task TryAutoFillFromUserAsync(Order order, int userId, CancellationToken ct)
@@ -112,14 +112,24 @@ public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authCont
     public async Task<OrderCreatedDto?> GetByIdAsync(int id, CancellationToken ct)
     {
         var o = await _db.Orders.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
-        return o is null ? null : ToCreatedDto(o);
+        return o is null ? null : _assembler.ToCreatedDto(o);
     }
     public async Task<OrderCreatedDto?> GetByNumberAsync(string orderNumber, CancellationToken ct)
     {
         var o = await _db.Orders.AsNoTracking().FirstOrDefaultAsync(x => x.OrderNumber == orderNumber, ct);
-        return o is null ? null : ToCreatedDto(o);
+        return o is null ? null : _assembler.ToCreatedDto(o);
     }
+    public async Task<OrderDetailsDto?> GetMyOrderByNumberAsync(int userId, string orderNumber, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(orderNumber)) return null;
 
+        var o = await _db.Orders
+            .AsNoTracking()
+            .Include(x => x.OrderItems)
+            .FirstOrDefaultAsync(x => x.OrderNumber == orderNumber && x.UserId == userId, ct);
+
+        return o is null ? null : _assembler.ToDetailsDto(o);
+    }
     public async Task<IReadOnlyList<MyOrderListItemDto>> GetMyOrdersAsync(int userId, int skip, int take, CancellationToken ct)
     {
         if (skip < 0) skip = 0;
@@ -224,41 +234,6 @@ public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authCont
         var rnd = Random.Shared.Next(1000, 9999);
         return $"ORD-{ts}-{rnd}";
     }
-
-    //move to factory later. 
-    private static OrderCreatedDto ToCreatedDto(Order o) =>
-    new(
-        o.Id,
-        o.OrderNumber,
-        o.CreatedAt,
-        o.Currency,
-        o.ProductsSubtotal,
-        o.ShippingCost,
-        o.TaxTotal,
-        o.GrandTotal,
-        o.OrderStatus,
-        o.Payment.Status,
-
-        o.CustomerFirstName,
-        o.CustomerLastName,
-        o.CustomerEmail,
-        o.CustomerPhoneNumber,
-
-        o.ShippingAddress is null
-            ? null
-            : new ShippingAddressDto(
-                o.ShippingAddress.Street,
-                o.ShippingAddress.City,
-                o.ShippingAddress.PostalCode,
-                o.ShippingAddress.Country
-            ),
-        o.ShippingCarrier,
-        o.ShippingMethod,
-        o.ServicePointId,
-
-        o.UserId
-    );
-
 
     // Shipping selection
     public async Task<bool> SetShippingSelectionAsync(string orderNumber, SetShippingSelectionDto dto, CancellationToken ct)
