@@ -10,30 +10,7 @@ namespace Infrastructure.Services;
 
 public class AdminProductService(PallshoppenDbContext dbContext) : IAdminProductService
 {
-    //helpers
-    private static TEnum ParseEnum<TEnum>(string? value, string param) where TEnum : struct, Enum
-    {
-        if (string.IsNullOrWhiteSpace(value)) throw new ArgumentException("värde saknas", param);
-        if (Enum.TryParse<TEnum>(value, true, out var ok)) return ok;
-        throw new ArgumentException($"Ogiltigt värde '{value}' för {typeof(TEnum).Name}", param);
-    }
-    private static string Slugify(string input) =>
-        input.Trim().ToLowerInvariant().Replace("(", "").Replace(")", "").Replace("  ", " ").Replace(' ', '-');
-    private static ProductDto ToDto(Product p) =>
-        new(p.Id,
-                p.Name,
-                p.Description,
-                p.ImgUrl,
-                p.PriceExVat,
-                p.PalletType.ToString(),
-                p.Condition.ToString(),
-                p.StockStatus.ToString(),
-                p.OnHand,
-                p.Reserved,
-                p.Available,
-                p.IsActive,
-                p.Sku,
-                p.Slug);
+
     public async Task<PagedResult<ProductDto>> GetAllAsync(int page, int pageSize, string? query, string? sort,List<string>? type, List<string>? condition,decimal? minPrice, decimal? maxPrice, bool? isActive, CancellationToken ct)
     {
         var q = dbContext.Products.AsNoTracking().AsQueryable();
@@ -79,20 +56,25 @@ public class AdminProductService(PallshoppenDbContext dbContext) : IAdminProduct
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(p => new ProductDto(
-                p.Id,
-                p.Name,
-                p.Description,
-                p.ImgUrl,
-                p.PriceExVat,
-                p.PalletType.ToString(),
-                p.Condition.ToString(),
-                p.StockStatus.ToString(),
-                p.OnHand,
-                p.Reserved,
-                p.Available,
-                p.IsActive,
-                p.Sku,
-                p.Slug))
+            p.Id,
+            p.Name,
+            p.Description,
+            p.ImgUrl,
+
+            p.PriceExVat,
+            (int)p.VatRate,
+
+            p.PalletType.ToString(),
+            p.Condition.ToString(),
+            p.StockStatus.ToString(),
+
+            p.OnHand,
+            p.Reserved,
+            p.Available,
+
+            p.IsActive,
+            p.Sku,
+            p.Slug))
             .ToListAsync(ct);
 
         return new PagedResult<ProductDto>
@@ -126,6 +108,7 @@ public class AdminProductService(PallshoppenDbContext dbContext) : IAdminProduct
             PalletType = ParseEnum<ProductType>(req.PalletType, nameof(req.PalletType)),
             Condition = ParseEnum<ProductCondition>(req.Condition, nameof(req.Condition)),
             PriceExVat = Math.Round(req.PriceExVat, 2),
+            VatRate = ParseVatRatePercent(req.VatRatePercent, nameof(req.VatRatePercent)),
             OnHand = req.OnHand,
             Reserved = 0,
             ImgUrl = string.Empty,
@@ -135,7 +118,7 @@ public class AdminProductService(PallshoppenDbContext dbContext) : IAdminProduct
         };
 
         dbContext.Products.Add(entity);
-        await dbContext.SaveChangesAsync();
+        await dbContext.SaveChangesAsync(ct);
         return ToDto(entity);
 
     }
@@ -155,8 +138,8 @@ public class AdminProductService(PallshoppenDbContext dbContext) : IAdminProduct
         entity.PalletType = ParseEnum<ProductType>(req.PalletType, nameof(req.PalletType));
         entity.Condition = ParseEnum<ProductCondition>(req.Condition, nameof(req.Condition));
         entity.PriceExVat = Math.Round(req.PriceExVat, 2);
+        entity.VatRate = ParseVatRatePercent(req.VatRatePercent, nameof(req.VatRatePercent));
         entity.OnHand = req.OnHand;
-        entity.Reserved = 0;
         entity.IsActive = req.IsActive;
 
 
@@ -188,4 +171,48 @@ public class AdminProductService(PallshoppenDbContext dbContext) : IAdminProduct
 
         return p is null ? null : ToDto(p);
     }
+
+
+
+
+    //helpers
+    private static TEnum ParseEnum<TEnum>(string? value, string param) where TEnum : struct, Enum
+    {
+        if (string.IsNullOrWhiteSpace(value)) throw new ArgumentException("värde saknas", param);
+        if (Enum.TryParse<TEnum>(value, true, out var ok)) return ok;
+        throw new ArgumentException($"Ogiltigt värde '{value}' för {typeof(TEnum).Name}", param);
+    }
+
+    private static VatRate ParseVatRatePercent(int vatRatePercent, string paramName)
+        => vatRatePercent switch
+        {
+            6 => VatRate.Vat6,
+            12 => VatRate.Vat12,
+            25 => VatRate.Vat25,
+            _ => throw new ArgumentOutOfRangeException(paramName, vatRatePercent, "VatRatePercent måste vara 6, 12 eller 25.")
+        };
+    private static string Slugify(string input) =>
+        input.Trim().ToLowerInvariant().Replace("(", "").Replace(")", "").Replace("  ", " ").Replace(' ', '-');
+    private static ProductDto ToDto(Product p) =>
+        new(
+            p.Id,
+            p.Name,
+            p.Description,
+            p.ImgUrl,
+
+            p.PriceExVat,
+            (int)p.VatRate,
+
+            p.PalletType.ToString(),
+            p.Condition.ToString(),
+            p.StockStatus.ToString(),
+
+            p.OnHand,
+            p.Reserved,
+            p.Available,
+
+            p.IsActive,
+            p.Sku,
+            p.Slug
+        );
 }
