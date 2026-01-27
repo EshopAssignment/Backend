@@ -81,16 +81,25 @@ public class AdminOrderService(PallshoppenDbContext dbContext) : IAdminOrderServ
                 ProductId: i.ProductId,
                 Sku: i.Sku,
                 ProductName: i.ProductName,
-                UnitPrice: i.UnitPrice,
-                VatRate: i.VatRate,
+
+                UnitPriceExVat: i.UnitPriceExVat,
+                VatRatePercent: i.VatRatePercent,
+                UnitVatAmount: i.UnitVatAmount,
+                UnitPriceIncVat: i.UnitPriceIncVat,
+
                 Quantity: i.Quantity,
-                LineTotal: i.LineTotal))
+
+                LineTotalExVat: i.LineTotalExVat,
+                LineTotalVat: i.LineTotalVat,
+                LineTotalIncVat: i.LineTotalIncVat
+            ))
             .ToList();
 
         var street = o.ShippingAddress?.Street ?? string.Empty;
         var postal = o.ShippingAddress?.PostalCode ?? string.Empty;
         var city = o.ShippingAddress?.City ?? string.Empty;
         var country = o.ShippingAddress?.Country ?? string.Empty;
+
         var trackingNumber = o.TrackingNumber;
         var trackingUrl = string.IsNullOrWhiteSpace(trackingNumber)
             ? null
@@ -100,25 +109,32 @@ public class AdminOrderService(PallshoppenDbContext dbContext) : IAdminOrderServ
             Id: o.Id,
             OrderNumber: o.OrderNumber,
             CreatedAtUtc: o.CreatedAt,
+
             CustomerFirstName: o.CustomerFirstName ?? string.Empty,
             CustomerLastName: o.CustomerLastName ?? string.Empty,
             CustomerEmail: o.CustomerEmail ?? string.Empty,
             CustomerPhoneNumber: o.CustomerPhoneNumber ?? string.Empty,
+
             ShippingStreet: street,
             ShippingPostalCode: postal,
             ShippingCity: city,
             ShippingCountry: country,
+
             OrderStatus: o.OrderStatus,
             PaymentStatus: o.Payment.Status,
             PaymentMethod: o.Payment.PaymentMethodType ?? string.Empty,
             PaymentIntentId: o.Payment.PaymentIntentId,
+
             Currency: o.Currency,
+
             ProductsSubtotal: o.ProductsSubtotal,
             ShippingCost: o.ShippingCost,
-            TaxTotal: o.TaxTotal,
+            VatTotal: o.VatTotal,
             GrandTotal: o.GrandTotal,
+
             TrackingNumber: trackingNumber,
-            TackingUrl: trackingUrl,
+            TrackingUrl: trackingUrl,
+
             Items: items
         );
     }

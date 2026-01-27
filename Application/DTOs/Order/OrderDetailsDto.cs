@@ -3,21 +3,25 @@ using Domain.Enums;
 
 namespace Application.DTOs.Order;
 
-public sealed record OrderItemDto(int ProductId,
+public sealed record OrderItemDto(
+    int ProductId,
     string ProductName,
     int Quantity,
-    decimal UnitPrice,
-    decimal LineTotal);
+    decimal UnitPriceExVat,
+    decimal LineTotalExVat
+    );
 
 public sealed record OrderDetailsDto(
     int OrderId,
     string OrderNumber,
     DateTime CreatedAtUtc,
     string Currency,
+
     decimal ProductsSubtotal,
     decimal ShippingCost,
-    decimal TaxTotal,
-    decimal GrandTotal,
+    decimal VatTotal,
+    decimal GrandTotal,       
+
     OrderStatus OrderStatus,
     PaymentStatus PaymentStatus,
 

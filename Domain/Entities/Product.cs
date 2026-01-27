@@ -16,7 +16,7 @@ public class Product
 
 
     public decimal PriceExVat { get; set; }
-    public decimal VatRate { get; set; }
+    public VatRate VatRate { get; set; } = Enums.VatRate.Vat25;
     public ProductCondition Condition { get; set; }
     public ProductType PalletType { get; set; }
 

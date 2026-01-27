@@ -67,7 +67,7 @@ public class Order
     public string Currency { get; private set; } = "SEK";
     public decimal ProductsSubtotal { get; private set; }  
     public decimal ShippingCost { get; private set; }
-    public decimal TaxTotal { get; private set; }
+    public decimal VatTotal { get; private set; }
     public decimal GrandTotal { get; private set; }
 
     //Cart Association
@@ -98,15 +98,12 @@ public class Order
         ShippingCost = cost;
         RecalculateTotals();
     }
-    public void SetTaxTotal(decimal tax)
-    {
-        TaxTotal = tax;
-        RecalculateTotals();
-    }
+
     private void RecalculateTotals()
     {
-        ProductsSubtotal = OrderItems.Sum(i => i.LineTotal);
-        GrandTotal = ProductsSubtotal + ShippingCost + TaxTotal;
+        ProductsSubtotal = OrderItems.Sum(i => i.LineTotalExVat);
+        VatTotal = OrderItems.Sum(i => i.LineTotalVat);
+        GrandTotal = ProductsSubtotal + VatTotal + ShippingCost;
         Touch();
     }
 

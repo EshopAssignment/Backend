@@ -1,5 +1,6 @@
 ﻿using Application.Interfaces;
 using Domain.Entities;
+using Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -24,11 +25,14 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
             entity.Property(p => p.ImgUrl).IsRequired();
 
             entity.Property(p => p.PriceExVat).HasPrecision(18, 2);
-            entity.Property(p => p.VatRate).HasPrecision(5, 4); 
+
+            entity.Property(p => p.VatRate)
+                .HasConversion<int>()
+                .HasDefaultValue(VatRate.Vat25);
 
             entity.ToTable(t => t.HasCheckConstraint(
                 "CK_Product_NonNegative",
-                "[OnHand] >= 0 AND [Reserved] >= 0 AND [LowStockThreshold] >= 0"
+                "[OnHand] >= 0 AND [Reserved] >= 0 AND [LowStockThreshold] >= 0 AND [PriceExVat] >= 0"
             ));
 
             entity.HasIndex(p => new { p.IsActive, p.Name })
@@ -86,7 +90,7 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
         entity.Property(o => o.ProductsSubtotal).HasPrecision(18, 2);
         entity.Property(o => o.ShippingCost).HasPrecision(18, 2);
         entity.Property(o => o.TrackingNumber).HasMaxLength(100).IsRequired(false);
-        entity.Property(o => o.TaxTotal).HasPrecision(18, 2);
+        entity.Property(o => o.VatTotal).HasPrecision(18, 2);
         entity.Property(o => o.GrandTotal).HasPrecision(18, 2);
 
 
@@ -122,11 +126,28 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
     private static void ConfigureOrderItem(EntityTypeBuilder<OrderItem> entity)
     {
         entity.Property(i => i.ProductName).HasMaxLength(200).IsRequired();
-        entity.Property(i => i.Sku).HasMaxLength(64);
+        entity.Property(i => i.Sku).HasMaxLength(64).IsRequired();
 
-        entity.Property(i => i.UnitPrice).HasPrecision(18, 2);
-        entity.Property(i => i.LineTotal).HasPrecision(18, 2);
-        entity.Property(i => i.VatRate).HasPrecision(5, 4);
+        entity.Property(i => i.UnitPriceExVat).HasPrecision(18, 2);
+        entity.Property(i => i.UnitVatAmount).HasPrecision(18, 2);
+        entity.Property(i => i.UnitPriceIncVat).HasPrecision(18, 2);
+
+        entity.Property(i => i.LineTotalExVat).HasPrecision(18, 2);
+        entity.Property(i => i.LineTotalVat).HasPrecision(18, 2);
+        entity.Property(i => i.LineTotalIncVat).HasPrecision(18, 2);
+
+        entity.Property(i => i.VatRatePercent).IsRequired();
+
+        entity.ToTable(t => t.HasCheckConstraint(
+            "CK_OrderItem_VatRatePercent_Allowed",
+            "[VatRatePercent] IN (6, 12, 25)"
+        ));
+
+        entity.ToTable(t => t.HasCheckConstraint(
+            "CK_OrderItem_NonNegativeAmounts",
+            "[UnitPriceExVat] >= 0 AND [UnitVatAmount] >= 0 AND [UnitPriceIncVat] >= 0 AND " +
+            "[LineTotalExVat] >= 0 AND [LineTotalVat] >= 0 AND [LineTotalIncVat] >= 0 AND [Quantity] > 0"
+        ));
 
         entity.HasOne(i => i.Product)
               .WithMany()

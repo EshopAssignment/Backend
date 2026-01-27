@@ -13,7 +13,10 @@ public static class DbSeeder
             return;
 
         string Slugify(string input) =>
-            input.Trim().ToLower().Replace(" ", "-").Replace("(", "").Replace(")", "");
+            input.Trim().ToLowerInvariant()
+                .Replace("å", "a").Replace("ä", "a").Replace("ö", "o")
+                .Replace(" ", "-")
+                .Replace("(", "").Replace(")", "");
 
         string SkuOf(string name) =>
             "SKU-" + Guid.NewGuid().ToString("N")[..8].ToUpper();
@@ -32,7 +35,8 @@ public static class DbSeeder
                 ImgUrl = "/images/not-implemented.jpg",
                 IsActive = true,
                 Slug = Slugify("EU-Pall"),
-                Sku = SkuOf("EU-Pall")
+                Sku = SkuOf("EU-Pall"),
+                VatRate = VatRate.Vat25,
             },
             new()
             {
@@ -46,7 +50,8 @@ public static class DbSeeder
                 ImgUrl = "/images/not-implemented.jpg",
                 IsActive = true,
                 Slug = Slugify("Pallkrage"),
-                Sku = SkuOf("Pallkrage")
+                Sku = SkuOf("Pallkrage"),
+                VatRate = VatRate.Vat25,
             },
             new()
             {
@@ -60,7 +65,8 @@ public static class DbSeeder
                 ImgUrl = "/images/not-implemented.jpg",
                 IsActive = true,
                 Slug = Slugify("Halvpall"),
-                Sku = SkuOf("Halvpall")
+                Sku = SkuOf("Halvpall"),
+                VatRate = VatRate.Vat25,
             },
             new()
             {
@@ -74,7 +80,8 @@ public static class DbSeeder
                 ImgUrl = "/images/not-implemented.jpg",
                 IsActive = true,
                 Slug = Slugify("Spån"),
-                Sku = SkuOf("Spån")
+                Sku = SkuOf("Spån"),
+                VatRate = VatRate.Vat25,
             },
             new()
             {
@@ -88,7 +95,8 @@ public static class DbSeeder
                 ImgUrl = "/images/not-implemented.jpg",
                 IsActive = true,
                 Slug = Slugify("Kontainer Pall"),
-                Sku = SkuOf("Kontainer Pall")
+                Sku = SkuOf("Kontainer Pall"),
+                VatRate = VatRate.Vat25,
             },
             new()
             {
@@ -102,7 +110,8 @@ public static class DbSeeder
                 ImgUrl = "/images/not-implemented.jpg",
                 IsActive = true,
                 Slug = Slugify("EU-Pall Refurbished"),
-                Sku = SkuOf("EU-Pall Refurbished")
+                Sku = SkuOf("EU-Pall Refurbished"),
+                VatRate = VatRate.Vat25,
             }
         };
 
