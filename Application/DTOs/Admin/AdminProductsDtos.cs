@@ -7,6 +7,7 @@ public record AdminCreateProductRequestDto(
     string PalletType,
     string Condition,
     decimal PriceExVat,
+    int VatRatePercent,
     int OnHand,
     string ImgUrl,
     bool IsActive
@@ -19,6 +20,7 @@ public record AdminUpdateProductRequestDto(
     string PalletType,
     string Condition,
     decimal PriceExVat,
+    int VatRatePercent,
     int OnHand,
     string ImgUrl,
     bool IsActive

@@ -102,7 +102,14 @@ public class AdminProductController(IAdminProductService productService, IWebHos
         return Ok(new
         {
             productTypes = GetEnumOptions<ProductType>(),
-            productConditions = GetEnumOptions<ProductCondition>()
+            productConditions = GetEnumOptions<ProductCondition>(),
+
+            vatRates = new[]
+            {
+                new { value = 6, label = "6%" },
+                new { value = 12, label = "12%" },
+                new { value = 25, label = "25%" },
+            }
         });
     }
 
