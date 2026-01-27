@@ -7,10 +7,12 @@ public sealed record OrderCreatedDto(
     string OrderNumber,
     DateTime CreatedAtUtc,
     string Currency,
-    decimal ProductsSubtotal,
+
+    decimal ProductsSubtotal, 
     decimal ShippingCost,
-    decimal TaxTotal,
-    decimal GrandTotal,
+    decimal VatTotal,
+    decimal GrandTotal,       
+
     OrderStatus OrderStatus,
     PaymentStatus PaymentStatus,
 

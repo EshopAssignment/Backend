@@ -2,7 +2,7 @@
 using Application.DTOs.Order;
 using Application.Interfaces;
 using Domain.Entities;
-
+using Domain.Factories;
 using Microsoft.EntityFrameworkCore;
 
 namespace Application.Assemblers;
@@ -17,10 +17,14 @@ public sealed class OrderAssembler(IAppDbContext dbContext)
             throw new InvalidOperationException("Order DTO is null or contains no items.");
 
         if (string.IsNullOrWhiteSpace(dto.CartId))
-            throw new Exception("Cart ID is required to create an order.");
+            throw new InvalidOperationException("Cart ID is required to create an order.");
 
+        if (string.IsNullOrWhiteSpace(orderNumber))
+            throw new InvalidOperationException("Order number is required.");
 
-        var currency = string.IsNullOrWhiteSpace(dto.Currency) ? "SEK" : dto.Currency.Trim().ToUpperInvariant();
+        var currency = string.IsNullOrWhiteSpace(dto.Currency)
+            ? "SEK"
+            : dto.Currency.Trim().ToUpperInvariant();
 
         var byProduct = dto.Items
             .GroupBy(x => x.ProductId)
@@ -28,10 +32,11 @@ public sealed class OrderAssembler(IAppDbContext dbContext)
             {
                 ProductId = g.Key,
                 Qty = g.Sum(x => x.Quantity)
-            }).ToList();
+            })
+            .ToList();
 
         if (byProduct.Any(x => x.ProductId <= 0))
-            throw new InvalidOperationException("Product Id must be valid");
+            throw new InvalidOperationException("Product Id must be valid.");
 
         if (byProduct.Any(x => x.Qty <= 0))
             throw new InvalidOperationException("Quantity must be >= 1.");
@@ -47,51 +52,47 @@ public sealed class OrderAssembler(IAppDbContext dbContext)
                 p.Name,
                 p.Sku,
                 p.PriceExVat,
-                p.VatRate
+                p.VatRate 
             })
             .ToListAsync(ct);
 
         if (products.Count != ids.Count)
-            throw new InvalidOperationException("One or more Products are invalid or Inactive");
+            throw new InvalidOperationException("One or more products are invalid or inactive.");
 
         var order = new Order(orderNumber, currency);
         order.SetCartId(dto.CartId);
 
         var items = new List<OrderItem>(byProduct.Count);
 
-        foreach(var x in byProduct)
+        foreach (var x in byProduct)
         {
             var p = products.First(pp => pp.Id == x.ProductId);
 
             if (string.IsNullOrWhiteSpace(p.Name))
-                throw new InvalidOperationException($"Product Name is missing productId={p.Id}.");
+                throw new InvalidOperationException($"Product name is missing for productId={p.Id}.");
 
             if (p.PriceExVat < 0)
-                throw new InvalidOperationException($"Price is Invalid for productId={p.Id}");
+                throw new InvalidOperationException($"PriceExVat is invalid for productId={p.Id}.");
 
-            if (p.VatRate < 0)
-                throw new InvalidOperationException($"VatRate is productId={p.Id}.");
+            var vatPercent = (int)p.VatRate;
+            if (vatPercent is not (6 or 12 or 25))
+                throw new InvalidOperationException($"VatRate is invalid for productId={p.Id}.");
 
-            var lineTotal = p.PriceExVat * x.Qty;
-
-            items.Add(new OrderItem
+            var productForFactory = new Product
             {
-                ProductId = p.Id,
-                Sku = string.IsNullOrWhiteSpace(p.Sku) ? $"PID-{p.Id}" : p.Sku.Trim(),
-                ProductName = p.Name.Trim(),
-                UnitPrice = p.PriceExVat,
-                VatRate = p.VatRate,
-                Quantity = x.Qty,
-                LineTotal = lineTotal,
-            });
+                Id = p.Id,
+                Name = p.Name.Trim(),
+                Sku = string.IsNullOrWhiteSpace(p.Sku) ? null : p.Sku.Trim(),
+                PriceExVat = p.PriceExVat,
+                VatRate = p.VatRate
+            };
+
+            items.Add(OrderItemFactory.FromProductExVat(productForFactory, x.Qty));
         }
 
         order.ReplaceItems(items);
 
         order.SetShippingCost(0m);
-
-        var taxTotal = items.Sum(i => i.LineTotal * i.VatRate);
-        order.SetTaxTotal(taxTotal);
 
         return order;
     }
@@ -104,7 +105,7 @@ public sealed class OrderAssembler(IAppDbContext dbContext)
             o.Currency,
             o.ProductsSubtotal,
             o.ShippingCost,
-            o.TaxTotal,
+            o.VatTotal,
             o.GrandTotal,
             o.OrderStatus,
             o.Payment.Status,
@@ -134,8 +135,9 @@ public sealed class OrderAssembler(IAppDbContext dbContext)
                     i.ProductId,
                     i.ProductName,
                     i.Quantity,
-                    i.UnitPrice,
-                    i.LineTotal
+                    i.UnitPriceExVat,
+                    i.LineTotalExVat
+
                 ))
                 .ToList(),
 
@@ -143,7 +145,7 @@ public sealed class OrderAssembler(IAppDbContext dbContext)
         );
 
 
-    //move to factory later. 
+
     public OrderCreatedDto ToCreatedDto(Order o) =>
     new(
         o.Id,
@@ -152,7 +154,7 @@ public sealed class OrderAssembler(IAppDbContext dbContext)
         o.Currency,
         o.ProductsSubtotal,
         o.ShippingCost,
-        o.TaxTotal,
+        o.VatTotal,
         o.GrandTotal,
         o.OrderStatus,
         o.Payment.Status,

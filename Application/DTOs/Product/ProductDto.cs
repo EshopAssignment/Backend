@@ -8,6 +8,7 @@ public sealed record ProductDto
     string ImgUrl,
 
     decimal PriceExVat,
+    int VatRatePercent,
 
     string PalletType,     
     string Condition,      

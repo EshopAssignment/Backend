@@ -12,20 +12,26 @@ public sealed record AdminOrderListItemDto(
     string CustomerEmail,
     OrderStatus OrderStatus,
     PaymentStatus PaymentStatus,
-    decimal GrandTotal,
+    decimal GrandTotal,      
     string PaymentMethod
-    );
+);
 public sealed record AdminOrderItemDto(
     int ProductId,
     string Sku,
     string ProductName,
-    decimal UnitPrice,
-    decimal VatRate,
-    int Quantity,
-    decimal LineTotal
-    );
-public sealed record AdminOrderDetailsDto(
 
+    decimal UnitPriceExVat,
+    int VatRatePercent,
+    decimal UnitVatAmount,
+    decimal UnitPriceIncVat,
+
+    int Quantity,
+
+    decimal LineTotalExVat,
+    decimal LineTotalVat,
+    decimal LineTotalIncVat
+);
+public sealed record AdminOrderDetailsDto(
     int Id,
     string OrderNumber,
     DateTime CreatedAtUtc,
@@ -42,20 +48,20 @@ public sealed record AdminOrderDetailsDto(
 
     OrderStatus OrderStatus,
     PaymentStatus PaymentStatus,
-    string PaymentMethod,     
-    string? PaymentIntentId,  
+    string PaymentMethod,
+    string? PaymentIntentId,
 
     string Currency,
-    decimal ProductsSubtotal,
-    decimal ShippingCost,
-    decimal TaxTotal,
-    decimal GrandTotal,
+
+    decimal ProductsSubtotal, 
+    decimal ShippingCost,     
+    decimal VatTotal,         
+    decimal GrandTotal,      
 
     string? TrackingNumber,
-    string? TackingUrl,
+    string? TrackingUrl,
 
     IReadOnlyList<AdminOrderItemDto> Items
-
 );
 
 public sealed record AdminUpdateOrderStatusRequest(OrderStatus OrderStatus);
