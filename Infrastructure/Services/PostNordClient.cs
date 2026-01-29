@@ -14,7 +14,7 @@ public sealed class PostNordClient(HttpClient http, IOptions<PostNordOptions> op
     {
         var pcClean = new string((postalCode ?? "").Where(char.IsDigit).ToArray());
         if (pcClean.Length != 5)
-            return Array.Empty<ServicePointDto>();
+            return [];
 
         var q = new List<string>
     {
@@ -38,7 +38,7 @@ public sealed class PostNordClient(HttpClient http, IOptions<PostNordOptions> op
 
 
             if ((int)res.StatusCode == 400 && LooksLikeNoServicePointFound(body))
-                return Array.Empty<ServicePointDto>();
+                return [];
 
             throw new HttpRequestException($"PostNord {(int)res.StatusCode} {res.ReasonPhrase}. Body: {body}");
         }
@@ -102,7 +102,6 @@ public sealed class PostNordClient(HttpClient http, IOptions<PostNordOptions> op
         return outList;
     }
 
-
     private static bool LooksLikeNoServicePointFound(string body)
     {
         if (string.IsNullOrWhiteSpace(body)) return false;
@@ -133,8 +132,6 @@ public sealed class PostNordClient(HttpClient http, IOptions<PostNordOptions> op
 
         return body.Contains("noServicePointFound", StringComparison.OrdinalIgnoreCase);
     }
-
-
 
     private static bool TryGet(JsonElement el, out JsonElement found, params string[] path)
     {

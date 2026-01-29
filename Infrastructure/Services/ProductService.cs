@@ -1,4 +1,5 @@
 ﻿
+using Application.Assemblers;
 using Application.DTOs.Product;
 using Application.Interfaces;
 using Domain.Entities;
@@ -8,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Services;
 
-public class ProductService(PallshoppenDbContext dbContext) : IProductService
+public class ProductService(PallshoppenDbContext dbContext, ProductAssembler assembler) : IProductService
 {
     private static TEnum ParseEnum<TEnum>(string? value, string paramName) where TEnum : struct, Enum
     {
@@ -16,24 +17,7 @@ public class ProductService(PallshoppenDbContext dbContext) : IProductService
         if (Enum.TryParse<TEnum>(value, true, out var parsed)) return parsed;
         throw new ArgumentException($"Inavlid value '{value}' for {typeof(TEnum).Name}", paramName);
     }
-    private static ProductDto ToDto(Product p) =>
-        new(
-        p.Id,
-        p.Name,
-        p.Description,
-        p.ImgUrl,
-        p.PriceExVat,
-        (int)p.VatRate,
-        p.PalletType.ToString(),
-        p.Condition.ToString(),
-        p.StockStatus.ToString(),
-        p.OnHand,
-        p.Reserved,
-        p.Available,
-        p.IsActive,
-        p.Sku,
-        p.Slug
-        );
+    private readonly ProductAssembler _assembler = assembler;   
 
 
     public async Task<PagedResult<ProductDto>> GetAllAsync(int page, int pageSize, string? query, string? sort, List<string>? type, List<string>? condition, decimal? minPrice, decimal? maxPrice, bool? inStock, CancellationToken ct)
@@ -116,7 +100,7 @@ public class ProductService(PallshoppenDbContext dbContext) : IProductService
         var p = await dbContext.Products.AsNoTracking()
             .FirstOrDefaultAsync(p => p.IsActive && p.Id == id, cancellationToken);
 
-        return p is null ? null : ToDto(p);
+        return p is null ? null : _assembler.ToDto(p);
     }
     public async Task<IEnumerable<ProductSuggestionDto>> SuggestionAsync(string q, int take, CancellationToken ct)
     {

@@ -111,6 +111,7 @@ builder.Services.AddMemoryCache();
 builder.Services.AddScoped<ITokenRefreshStore, TokenRefreshStore>();
 builder.Services.AddScoped<ITokenService, InfrastructureTokenService>();
 builder.Services.AddScoped<OrderAssembler>();
+builder.Services.AddScoped<ProductAssembler>();
 
 //Authentication & Authorization
 builder.Services.AddAuthentication(o =>
