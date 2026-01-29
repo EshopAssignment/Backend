@@ -21,10 +21,7 @@ public class TokenService : ITokenService
     private readonly SigningCredentials _creds;
     private readonly TokenValidationParameters _validationParams;
 
-    public TokenService(
-        IOptions<JwtOptions> options,
-        UserManager<User> users,
-        ITokenRefreshStore refreshStore)
+    public TokenService(IOptions<JwtOptions> options, UserManager<User> users, ITokenRefreshStore refreshStore)
     {
         _opt = options.Value;
         _user = users;

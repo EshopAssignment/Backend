@@ -1,5 +1,4 @@
-﻿using Application.DTOs.Admin;
-using Application.DTOs.Order;
+﻿using Application.DTOs.Order;
 using Application.Interfaces;
 using Domain.Entities;
 using Domain.Factories;
@@ -96,7 +95,6 @@ public sealed class OrderAssembler(IAppDbContext dbContext)
 
         return order;
     }
-
     public OrderDetailsDto ToDetailsDto(Order o) =>
         new(
             o.Id,
@@ -143,9 +141,6 @@ public sealed class OrderAssembler(IAppDbContext dbContext)
 
             o.UserId
         );
-
-
-
     public OrderCreatedDto ToCreatedDto(Order o) =>
     new(
         o.Id,

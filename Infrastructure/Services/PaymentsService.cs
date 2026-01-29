@@ -5,7 +5,7 @@ using Stripe;
 public class PaymentsService(PallshoppenDbContext dbContext, StripeClient stripeClient)
 {
     private readonly PallshoppenDbContext _db = dbContext;
-    private readonly PaymentIntentService _pi = new PaymentIntentService(stripeClient);
+    private readonly PaymentIntentService _pi = new(stripeClient);
 
     private static long ToMinorUnits(decimal amount) =>
         (long)Math.Round(amount * 100m, 0, MidpointRounding.AwayFromZero);

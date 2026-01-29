@@ -45,70 +45,6 @@ public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authCont
 
         return _assembler.ToCreatedDto(order);
     }
-
-    private async Task TryAutoFillFromUserAsync(Order order, int userId, CancellationToken ct)
-    {
-        var u = await _authDb.Users
-            .AsNoTracking()
-            .Include(x => x.Profile)
-            .ThenInclude(p => p.Addresses!)
-            .FirstOrDefaultAsync(x => x.Id == userId, ct);
-
-        if (u is null) return;
-
-        var email = u.Email?.Trim();
-        if (string.IsNullOrWhiteSpace(email)) return;
-
-        var first = (u.Profile?.FirstName ?? "").Trim();
-        var last = (u.Profile?.LastName ?? "").Trim();
-        var phone = string.IsNullOrWhiteSpace(u.Profile?.Phone) ? null : u.Profile!.Phone.Trim();
-
-
-        order.SetCustomerEmail(email);
-
-        if (!string.IsNullOrWhiteSpace(first) && !string.IsNullOrWhiteSpace(last))
-        {
-            order.SetCustomer(first, last, email, phone);
-        }
-        else
-        {
-            if (!string.IsNullOrWhiteSpace(first)) order.CustomerFirstName = first;
-            if (!string.IsNullOrWhiteSpace(last)) order.CustomerLastName = last;
-            if (!string.IsNullOrWhiteSpace(phone)) order.CustomerPhoneNumber = phone;
-
-        }
-
-        if (order.ShippingAddress is not null)
-            return;
-
-        var profile = u.Profile;
-        var addresses = profile?.Addresses?
-            .Where(a => a is not null && !a.IsDeleted)
-            .ToList();
-
-        if (addresses is null || addresses.Count == 0)
-            return;
-
-        var chosen = profile?.DefaultShippingAddressId is int defIdf
-            ? addresses.FirstOrDefault(a => a.Id == defIdf) ?? addresses[0]
-            : addresses[0];
-
-        var street = (chosen.Street ?? "").Trim();
-        var city = (chosen.City ?? "").Trim();
-        var postal = (chosen.PostalCode ?? "").Trim().Replace(" ", "");
-        var country = string.IsNullOrWhiteSpace(chosen.Country) ? "SE" : chosen.Country.Trim().ToUpperInvariant();
-
-        if (street.Length == 0 || city.Length == 0 || postal.Length == 0)
-            return;
-
-        order.SetShippingAddress(new ShippingAddress(
-            street: street,
-            city: city,
-            postalCode: postal,
-            country: country
-            ));
-    }
-
     public async Task<OrderCreatedDto?> GetByIdAsync(int id, CancellationToken ct)
     {
         var o = await _db.Orders.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
@@ -234,7 +170,69 @@ public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authCont
         var rnd = Random.Shared.Next(1000, 9999);
         return $"ORD-{ts}-{rnd}";
     }
+    private async Task TryAutoFillFromUserAsync(Order order, int userId, CancellationToken ct)
+    {
+        var u = await _authDb.Users
+            .AsNoTracking()
+            .Include(x => x.Profile)
+            .ThenInclude(p => p.Addresses!)
+            .FirstOrDefaultAsync(x => x.Id == userId, ct);
 
+        if (u is null) return;
+
+        var email = u.Email?.Trim();
+        if (string.IsNullOrWhiteSpace(email)) return;
+
+        var first = (u.Profile?.FirstName ?? "").Trim();
+        var last = (u.Profile?.LastName ?? "").Trim();
+        var phone = string.IsNullOrWhiteSpace(u.Profile?.Phone) ? null : u.Profile!.Phone.Trim();
+
+
+        order.SetCustomerEmail(email);
+
+        if (!string.IsNullOrWhiteSpace(first) && !string.IsNullOrWhiteSpace(last))
+        {
+            order.SetCustomer(first, last, email, phone);
+        }
+        else
+        {
+            if (!string.IsNullOrWhiteSpace(first)) order.CustomerFirstName = first;
+            if (!string.IsNullOrWhiteSpace(last)) order.CustomerLastName = last;
+            if (!string.IsNullOrWhiteSpace(phone)) order.CustomerPhoneNumber = phone;
+
+        }
+
+        if (order.ShippingAddress is not null)
+            return;
+
+        var profile = u.Profile;
+        var addresses = profile?.Addresses?
+            .Where(a => a is not null && !a.IsDeleted)
+            .ToList();
+
+        if (addresses is null || addresses.Count == 0)
+            return;
+
+        var chosen = profile?.DefaultShippingAddressId is int defIdf
+            ? addresses.FirstOrDefault(a => a.Id == defIdf) ?? addresses[0]
+            : addresses[0];
+
+        var street = (chosen.Street ?? "").Trim();
+        var city = (chosen.City ?? "").Trim();
+        var postal = (chosen.PostalCode ?? "").Trim().Replace(" ", "");
+        var country = string.IsNullOrWhiteSpace(chosen.Country) ? "SE" : chosen.Country.Trim().ToUpperInvariant();
+
+        if (street.Length == 0 || city.Length == 0 || postal.Length == 0)
+            return;
+
+        order.SetShippingAddress(new ShippingAddress(
+            street: street,
+            city: city,
+            postalCode: postal,
+            country: country
+            ));
+    }
+   
     // Shipping selection
     public async Task<bool> SetShippingSelectionAsync(string orderNumber, SetShippingSelectionDto dto, CancellationToken ct)
     {
