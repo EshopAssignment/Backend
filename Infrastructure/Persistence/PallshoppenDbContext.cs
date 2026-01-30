@@ -56,9 +56,22 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
             entity.Property(r => r.IdempotencyKey).HasMaxLength(64);
 
             entity.HasIndex(r => new { r.ProductId, r.Status });
+
             entity.HasIndex(r => r.IdempotencyKey)
                   .IsUnique()
                   .HasFilter("[IdempotencyKey] IS NOT NULL");
+
+
+            entity.HasIndex(r => new { r.CartId, r.ProductId })
+                .IsUnique()
+                .HasDatabaseName("UX_StockReservations_Active_Cart_Product")
+                .HasFilter($"[Status] = {(int)StockReservationStatus.Active}");
+
+            entity.HasIndex(r => new { r.CartId, r.Status })
+                .HasDatabaseName("IX_StockReservations_Cart_Status");
+
+            entity.HasIndex(r => new { r.Status, r.ExpiresAt })
+                .HasDatabaseName("IX_StockReservations_Status_ExpiresAt");
 
             entity.HasOne(r => r.Product)
                   .WithMany()
