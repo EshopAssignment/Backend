@@ -167,33 +167,54 @@ public class InventoryService(PallshoppenDbContext dbContext) : IInventoryServic
         var now = DateTimeOffset.UtcNow;
 
         var expired = await dbContext.StockReservations
+            .AsNoTracking()
             .Where(r => r.Status == StockReservationStatus.Active && r.ExpiresAt <= now)
+            .Select(r => new { r.Id, r.ProductId, r.Quantity })
             .ToListAsync(ct);
 
         if (expired.Count == 0) return 0;
 
         await using var tx = await dbContext.Database.BeginTransactionAsync(ct);
 
-        foreach (var group in expired.GroupBy(r => r.ProductId))
+        foreach (var g in expired.GroupBy(x => x.ProductId))
         {
-            var sum = group.Sum(x => x.Quantity);
+            var sum = g.Sum(x => x.Quantity);
 
             var affected = await dbContext.Database.ExecuteSqlRawAsync(
-                "UPDATE [core].[Products] SET Reserved = Reserved - {0} WHERE Id = {1} AND Reserved >= {0}",
-            [sum, group.Key], ct);
+                "UPDATE [core].[Products] " +
+                "SET Reserved = Reserved - {0} " +
+                "WHERE Id = {1} AND Reserved >= {0}",
+                [sum, g.Key], ct);
 
             if (affected == 0)
             {
                 await tx.RollbackAsync(ct);
-                throw new InvalidOperationException($"RESERVED_UNDERFLOW productId={group.Key}");
+                throw new InvalidOperationException($"RESERVED_UNDERFLOW productId={g.Key}");
             }
         }
 
-        foreach (var r in expired) r.Status = StockReservationStatus.Released;
 
-        var count = await dbContext.SaveChangesAsync(ct);
+        var ids = expired.Select(x => x.Id).ToArray();
+
+        var parameters = new List<SqlParameter>(ids.Length);
+        var placeholders = new string[ids.Length];
+        for (int i = 0; i < ids.Length; i++)
+        {
+            var p = new SqlParameter($"@p{i}", ids[i]);
+            parameters.Add(p);
+            placeholders[i] = p.ParameterName;
+        }
+
+        var sql =
+            $"UPDATE [core].[StockReservations] " +
+            $"SET Status = {(int)StockReservationStatus.Released} " +
+            $"WHERE Id IN ({string.Join(",", placeholders)})";
+
+        var updated = await dbContext.Database.ExecuteSqlRawAsync(sql, parameters.ToArray(), ct);
+
         await tx.CommitAsync(ct);
-        return count;
+
+        return updated; 
     }
     static bool IsUniqueViolation(DbUpdateException ex)
     {
