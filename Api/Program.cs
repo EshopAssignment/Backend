@@ -104,12 +104,17 @@ builder.Services.AddSingleton(_ => new Stripe.StripeClient(secretKey));
 //Register HostedService(Background seeder)
 builder.Services.AddHostedService<DatabaseInitializerHostedService>();
 builder.Services.AddHostedService<PendingCleanupService>();
+builder.Services.AddHostedService<StockReservationDeleteService>();
 
 //Token Service
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
-builder.Services.AddMemoryCache();
 builder.Services.AddScoped<ITokenRefreshStore, TokenRefreshStore>();
 builder.Services.AddScoped<ITokenService, InfrastructureTokenService>();
+
+//In-Memory cache for refresh tokens
+builder.Services.AddMemoryCache();
+
+//Assemblers
 builder.Services.AddScoped<OrderAssembler>();
 builder.Services.AddScoped<ProductAssembler>();
 

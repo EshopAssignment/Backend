@@ -24,21 +24,21 @@ public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authCont
         if (dto.Items is null || dto.Items.Count == 0)
             throw new InvalidOperationException("Must at least have one item");
 
+        if (string.IsNullOrWhiteSpace(dto.CartId))
+            throw new InvalidOperationException("CartId is required");
+
+        var items = dto.Items.Select(x => (x.ProductId, x.Quantity)).ToList();
+        var (ok, err) = await _inventory.VerifyCartReservationAsync(dto.CartId, items, ct);
+        if (!ok) throw new InvalidOperationException(err ?? "RESERVATION_MISMATCH");
+
         var orderNumber = await GenerateUniqueOrderNumberAsync(ct);
+
         var order = await _assembler.FromDtoAsync(dto, orderNumber, ct);
 
         order.UserId = userId;
 
         if (userId is not null)
             await TryAutoFillFromUserAsync(order, userId.Value, ct);
-
-        var ttl = TimeSpan.FromMinutes(dto.ReservationTtlMinutes <= 0 ? 60 : dto.ReservationTtlMinutes);
-        foreach (var i in dto.Items)
-        {
-            var idempotency = $"{orderNumber}:{i.ProductId}";
-            var (ok, err) = await _inventory.ReserveAsync(i.ProductId, i.Quantity, dto.CartId, idempotency, ttl, ct);
-            if (!ok) throw new InvalidOperationException(err ?? "INSUFFICIENT_AVAILABLE");
-        }
 
         _db.Orders.Add(order);
         await _db.SaveChangesAsync(ct);
@@ -101,29 +101,14 @@ public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authCont
             .FirstOrDefaultAsync(o => o.OrderNumber == orderNumber, ct);
         if (order is null) return false;
 
-        var (ok, _) = await _inventory.ConfirmOrderFromCartAsync(cartId, paymentIntentId, ct);
+        var (ok, err) = await _inventory.ConfirmOrderFromCartAsync(cartId, paymentIntentId, ct);
 
         if (!ok)
         {
-            await using var tx = await _db.Database.BeginTransactionAsync(ct);
-            foreach (var g in order.OrderItems.GroupBy(i => i.ProductId))
-            {
-                var qty = g.Sum(x => x.Quantity);
-                var affected = await _db.Database.ExecuteSqlRawAsync(
-                        "UPDATE [core].[Products] SET OnHand = OnHand - {0}, Reserved = Reserved - {0} " +
-                        "WHERE Id = {1} AND OnHand >= {0} AND Reserved >= {0}",
-                    [qty, g.Key], ct);
-
-                if (affected == 0)
-                {
-                    await tx.RollbackAsync(ct);
-                    order.Payment.MarkFailed();
-                    order.MarkFailed();
-                    await _db.SaveChangesAsync(ct);
-                    return false;
-                }
-            }
-            await tx.CommitAsync(ct);
+            order.Payment.MarkFailed();
+            order.MarkFailed();
+            await _db.SaveChangesAsync(ct);
+            return false;
         }
 
         order.Payment.MarkAuthorized(paymentIntentId, latestChargeId, amount, methodType, DateTime.UtcNow);

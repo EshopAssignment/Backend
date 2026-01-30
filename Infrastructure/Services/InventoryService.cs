@@ -10,7 +10,9 @@ namespace Infrastructure.Services;
 
 public class InventoryService(PallshoppenDbContext dbContext) : IInventoryService
 {
-    //Certified ClankerMade(ChatGTP5.1) cuz RawSQL makes me want to stab myself in the eye
+    //GPT 5.2 generated.
+
+    //legacy
     public async Task<(bool ok, string? error)> ReserveAsync(int productId, int qty, string cartId, string? idempotencyKey, TimeSpan ttl, CancellationToken ct)
     {
         if (qty <= 0) return (false, "QTY_INVALID");
@@ -165,37 +167,174 @@ public class InventoryService(PallshoppenDbContext dbContext) : IInventoryServic
         var now = DateTimeOffset.UtcNow;
 
         var expired = await dbContext.StockReservations
+            .AsNoTracking()
             .Where(r => r.Status == StockReservationStatus.Active && r.ExpiresAt <= now)
+            .Select(r => new { r.Id, r.ProductId, r.Quantity })
             .ToListAsync(ct);
 
         if (expired.Count == 0) return 0;
 
         await using var tx = await dbContext.Database.BeginTransactionAsync(ct);
 
-        foreach (var group in expired.GroupBy(r => r.ProductId))
+        foreach (var g in expired.GroupBy(x => x.ProductId))
         {
-            var sum = group.Sum(x => x.Quantity);
+            var sum = g.Sum(x => x.Quantity);
 
             var affected = await dbContext.Database.ExecuteSqlRawAsync(
-                "UPDATE [core].[Products] SET Reserved = Reserved - {0} WHERE Id = {1} AND Reserved >= {0}",
-            [sum, group.Key], ct);
+                "UPDATE [core].[Products] " +
+                "SET Reserved = Reserved - {0} " +
+                "WHERE Id = {1} AND Reserved >= {0}",
+                [sum, g.Key], ct);
 
             if (affected == 0)
             {
                 await tx.RollbackAsync(ct);
-                throw new InvalidOperationException($"RESERVED_UNDERFLOW productId={group.Key}");
+                throw new InvalidOperationException($"RESERVED_UNDERFLOW productId={g.Key}");
             }
         }
 
-        foreach (var r in expired) r.Status = StockReservationStatus.Released;
 
-        var count = await dbContext.SaveChangesAsync(ct);
+        var ids = expired.Select(x => x.Id).ToArray();
+
+        var parameters = new List<SqlParameter>(ids.Length);
+        var placeholders = new string[ids.Length];
+        for (int i = 0; i < ids.Length; i++)
+        {
+            var p = new SqlParameter($"@p{i}", ids[i]);
+            parameters.Add(p);
+            placeholders[i] = p.ParameterName;
+        }
+
+        var sql =
+            $"UPDATE [core].[StockReservations] " +
+            $"SET Status = {(int)StockReservationStatus.Released} " +
+            $"WHERE Id IN ({string.Join(",", placeholders)})";
+
+        var updated = await dbContext.Database.ExecuteSqlRawAsync(sql, parameters.ToArray(), ct);
+
         await tx.CommitAsync(ct);
-        return count;
+
+        return updated; 
     }
     static bool IsUniqueViolation(DbUpdateException ex)
     {
         if (ex.InnerException is not SqlException sql) return false;
         return sql.Number is 2601 or 2627;
+    }
+    public async Task<(bool ok, string? error)> SetReservationQtyAsync(int productId, int desiredQty, string cartId, TimeSpan ttl, CancellationToken ct)
+    {
+        if (desiredQty < 0) return (false, "QTY_INVALID");
+
+        var now = DateTimeOffset.UtcNow;
+
+        await using var tx = await dbContext.Database.BeginTransactionAsync(ct);
+
+        var existing = await dbContext.StockReservations
+        .FromSqlRaw(@"
+            SELECT * FROM [core].[StockReservations] WITH (UPDLOCK, HOLDLOCK)
+            WHERE CartId = {0} AND ProductId = {1} AND Status = {2}",
+            cartId, productId, StockReservationStatus.Active)
+        .FirstOrDefaultAsync(ct);
+
+        var currentQty = existing?.Quantity ?? 0;
+        if (currentQty == desiredQty)
+        {
+            if(existing is not null)
+            {
+                existing.ExpiresAt = now.Add(ttl);
+                await dbContext.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
+            }
+            else
+            {
+                await tx.RollbackAsync(ct);
+            }
+
+            return (true, null);
+        }
+
+        var delta = desiredQty - currentQty;
+
+        if (delta > 0 )
+        {
+            var affected = await dbContext.Database.ExecuteSqlRawAsync(
+            "UPDATE [core].[Products] SET Reserved = Reserved + {0} " +
+            "WHERE Id = {1} AND (OnHand - Reserved) >= {0}",
+            [delta, productId], ct);
+
+            if (affected == 0)
+            {
+                await tx.RollbackAsync(ct);
+                return (false, "INSUFFICIENT_AVAILABLE");
+            }
+        } else if (delta < 0)
+        {
+            var dec = -delta;
+            var affected = await dbContext.Database.ExecuteSqlRawAsync(
+            "UPDATE [core].[Products] SET Reserved = Reserved - {0} " +
+            "WHERE Id = {1} AND Reserved >= {0}",
+            [dec, productId], ct);
+
+            if ( affected == 0)
+            {
+                await tx.RollbackAsync(ct);
+                return (false, "RESERVED_UNDERFLOW");
+            }
+        }
+
+        if(desiredQty == 0)
+        {
+            if(existing is not null)
+            {
+                existing.Status = StockReservationStatus.Released;
+                existing.ExpiresAt = now;
+                await dbContext.SaveChangesAsync(ct);
+            }
+
+            await tx.CommitAsync(ct);
+            return (true, null);
+        }
+
+        if (existing is null )
+        {
+            dbContext.StockReservations.Add(new StockReservation
+            {
+                ProductId = productId,
+                Quantity = desiredQty,
+                CartId = cartId,
+                ExpiresAt = now.Add(ttl),
+                Status = StockReservationStatus.Active,
+                CreatedAt = now
+            });
+        }
+        else
+        {
+            existing.Quantity = desiredQty;
+            existing.ExpiresAt = now.Add(ttl);
+        }
+        await dbContext.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        return (true, null);
+
+    }
+    public async Task<(bool ok, string? error)> VerifyCartReservationAsync(string cartId, IReadOnlyList<(int productId, int qty)> items, CancellationToken ct)
+    {
+        var active = await dbContext.StockReservations
+            .AsNoTracking()
+            .Where(r => r.CartId == cartId && r.Status == StockReservationStatus.Active)
+            .GroupBy(r => r.ProductId)
+            .Select(g => new { ProductId = g.Key, Qty = g.Sum(x => x.Quantity)})
+            .ToListAsync(ct);
+
+        var map = active.ToDictionary(x => x.ProductId, x => x.Qty);
+
+        foreach(var (pid, qty) in items)
+        {
+            if (qty <= 0) return (false, "QTY_INVALID");
+            if(!map.TryGetValue(pid, out var reservedQty)) return(false, $"NOT_RESERVED productId={pid}");
+            if (reservedQty < qty) return (false, $"RESERVATION_TOO_LOW productId={pid} reserved={reservedQty} want={qty}");
+        }
+
+        return (true, null);
     }
 }
