@@ -101,29 +101,14 @@ public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authCont
             .FirstOrDefaultAsync(o => o.OrderNumber == orderNumber, ct);
         if (order is null) return false;
 
-        var (ok, _) = await _inventory.ConfirmOrderFromCartAsync(cartId, paymentIntentId, ct);
+        var (ok, err) = await _inventory.ConfirmOrderFromCartAsync(cartId, paymentIntentId, ct);
 
         if (!ok)
         {
-            await using var tx = await _db.Database.BeginTransactionAsync(ct);
-            foreach (var g in order.OrderItems.GroupBy(i => i.ProductId))
-            {
-                var qty = g.Sum(x => x.Quantity);
-                var affected = await _db.Database.ExecuteSqlRawAsync(
-                        "UPDATE [core].[Products] SET OnHand = OnHand - {0}, Reserved = Reserved - {0} " +
-                        "WHERE Id = {1} AND OnHand >= {0} AND Reserved >= {0}",
-                    [qty, g.Key], ct);
-
-                if (affected == 0)
-                {
-                    await tx.RollbackAsync(ct);
-                    order.Payment.MarkFailed();
-                    order.MarkFailed();
-                    await _db.SaveChangesAsync(ct);
-                    return false;
-                }
-            }
-            await tx.CommitAsync(ct);
+            order.Payment.MarkFailed();
+            order.MarkFailed();
+            await _db.SaveChangesAsync(ct);
+            return false;
         }
 
         order.Payment.MarkAuthorized(paymentIntentId, latestChargeId, amount, methodType, DateTime.UtcNow);

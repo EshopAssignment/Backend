@@ -11,6 +11,8 @@ namespace Infrastructure.Services;
 public class InventoryService(PallshoppenDbContext dbContext) : IInventoryService
 {
     //GPT 5.2 generated.
+
+    //legacy
     public async Task<(bool ok, string? error)> ReserveAsync(int productId, int qty, string cartId, string? idempotencyKey, TimeSpan ttl, CancellationToken ct)
     {
         if (qty <= 0) return (false, "QTY_INVALID");
@@ -198,7 +200,6 @@ public class InventoryService(PallshoppenDbContext dbContext) : IInventoryServic
         if (ex.InnerException is not SqlException sql) return false;
         return sql.Number is 2601 or 2627;
     }
-
     public async Task<(bool ok, string? error)> SetReservationQtyAsync(int productId, int desiredQty, string cartId, TimeSpan ttl, CancellationToken ct)
     {
         if (desiredQty < 0) return (false, "QTY_INVALID");
@@ -295,7 +296,6 @@ public class InventoryService(PallshoppenDbContext dbContext) : IInventoryServic
         return (true, null);
 
     }
-
     public async Task<(bool ok, string? error)> VerifyCartReservationAsync(string cartId, IReadOnlyList<(int productId, int qty)> items, CancellationToken ct)
     {
         var active = await dbContext.StockReservations
