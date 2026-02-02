@@ -12,7 +12,7 @@ public class InventoryService(PallshoppenDbContext dbContext) : IInventoryServic
 {
     //GPT 5.2 generated.
 
-    //legacy
+    //ReserveAsync i now legacy.
     public async Task<(bool ok, string? error)> ReserveAsync(int productId, int qty, string cartId, string? idempotencyKey, TimeSpan ttl, CancellationToken ct)
     {
         if (qty <= 0) return (false, "QTY_INVALID");

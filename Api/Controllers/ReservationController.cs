@@ -18,7 +18,7 @@ public sealed class ReservationController(IInventoryService inventory) : Control
         var ttl = TimeSpan.FromMinutes(dto.ReservationTtlMinutes <= 0 ? 30 : dto.ReservationTtlMinutes);
 
         var (ok, err) = await inventory.SetReservationQtyAsync(dto.ProductId, dto.Quantity, dto.CartId, ttl, ct);
-        return ? Ok() : BadRequest(new { error = err });
+        return ok ? Ok() : BadRequest(new { error = err });
 
     }
 }
