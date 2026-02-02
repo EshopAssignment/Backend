@@ -8,8 +8,8 @@ namespace Infrastructure.Persistence;
 
 public sealed class PendingCleanupService(IServiceScopeFactory scopeFactory, ILogger<PendingCleanupService> log) : BackgroundService
 {
-    private static readonly TimeSpan MaxAge = TimeSpan.FromMinutes(3);
-    private static readonly TimeSpan Interval = TimeSpan.FromMinutes(1);
+    private static readonly TimeSpan MaxAge = TimeSpan.FromMinutes(30);
+    private static readonly TimeSpan Interval = TimeSpan.FromMinutes(5);
 
 
     protected override async Task ExecuteAsync(CancellationToken ct)
