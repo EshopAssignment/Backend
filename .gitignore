@@ -365,3 +365,4 @@ FodyWeavers.xsd
 /Api/appsettings.Development.json
 /Api/appsettings.json
 /Api/appsettings.Development.json
+/.env
