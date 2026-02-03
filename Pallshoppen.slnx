@@ -1,4 +1,8 @@
 <Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".env" />
+    <File Path=".env.dummy" />
+  </Folder>
   <Project Path="Api/Api.csproj" Id="77780543-3695-4ddf-b48d-737ca0417beb" />
   <Project Path="Application/Application.csproj" Id="33ab3594-d975-47e2-8517-e281ecab27ad" />
   <Project Path="docker-compose.dcproj">

@@ -4,3 +4,25 @@ services:
     build:
       context: .
       dockerfile: Api/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Development"
+      ConnectionStrings__DefaultConnection: "Server=db;Database=EshopDb;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;"
+
+    depends_on:
+      - db
+
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: eshop-db
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "${SA_PASSWORD}"
+    ports:
+      - "1433:1433"
+    volumes:
+      - eshop_sql_data:/var/opt/mssql
+
+volumes:
+  eshop_sql_data:
