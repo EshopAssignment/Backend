@@ -1,7 +1,9 @@
 ﻿{
   "ConnectionStrings": {
-    "DefaultConnection": "Data Source=(LocalDB)\\MSSQLLocalDB;AttachDbFilename=C:\\Users\\erika\\Desktop\\Consid\\DB\\Database.mdf;Integrated Security=True;Connect Timeout=30"
+    "DefaultConnection": "Data Source=(LocalDB)\\MSSQLLocalDB;AttachDbFilename=C:\\Users\\erika\\Desktop\\Consid\\DB\\Database.mdf;Integrated Security=True;Connect Timeout=30",
     //"DefaultConnection": "Data Source=(LocalDB)\\MSSQLLocalDB;AttachDbFilename=C:\\Users\\ville\\Desktop\\Consid\\Db\\Database.mdf;Integrated Security=True;Connect Timeout=30"
+    //"DefaultConnection": "Server=db;Database=EshopDb;User Id=sa;Password=sdfgh!;TrustServerCertificate=True;"
+
   },
 
   "Jwt": {

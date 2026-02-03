@@ -5,27 +5,30 @@ using Microsoft.Extensions.Hosting;
 
 namespace Infrastructure.Persistence;
 
-public class DatabaseInitializerHostedService(IServiceProvider serviceProvider) : IHostedService
+public sealed class DatabaseInitializerHostedService(IServiceProvider serviceProvider)
+    : IHostedService
 {
-
-    //Background Service for seeding data to the database. 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
+        using var scope = serviceProvider.CreateScope();
+
         try
         {
-            using var scope = serviceProvider.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<PallshoppenDbContext>();
+            var coreDb = scope.ServiceProvider.GetRequiredService<PallshoppenDbContext>();
+            var authDb = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
 
-            await db.Database.MigrateAsync(cancellationToken);
-            //apply migrations
-            await DbSeeder.SeedAsync(db, cancellationToken);
+            await coreDb.Database.MigrateAsync(cancellationToken);
+            await authDb.Database.MigrateAsync(cancellationToken);
 
+            await DbSeeder.SeedAsync(coreDb, cancellationToken);
+
+            await IdentitySeeder.SeedAsync(scope.ServiceProvider);
         }
         catch (Exception ex)
         {
+            Console.WriteLine("❌ Database initialization failed");
             Console.WriteLine(ex);
             throw;
-            //logger not implemented. 
         }
     }
 

@@ -14,27 +14,28 @@ public sealed class PendingCleanupService(IServiceScopeFactory scopeFactory, ILo
 
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
-        await Task.Delay(TimeSpan.FromSeconds(5), ct);
-        
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(5), ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            return; 
+        }
+
         while (!ct.IsCancellationRequested)
         {
             try
             {
                 using var scope = scopeFactory.CreateScope();
-
                 var db = scope.ServiceProvider.GetRequiredService<PallshoppenDbContext>();
-                var inventroy = scope.ServiceProvider.GetService<Application.Interfaces.IInventoryService>();
+                var inventory = scope.ServiceProvider.GetService<Application.Interfaces.IInventoryService>();
                 var cutoff = DateTime.UtcNow - MaxAge;
 
                 var doomed = await db.Orders
                     .Where(o => o.CreatedAt < cutoff)
-                    .Where(o => o.Payment.PaymentIntentId == null)
-                    .Select(o => new
-                    {
-                        o.Id,
-                        o.OrderNumber,
-                        o.CartId
-                    })
+                    .Where(o => o.Payment != null && o.Payment.PaymentIntentId == null) 
+                    .Select(o => new { o.Id, o.OrderNumber, o.CartId })
                     .ToListAsync(ct);
 
                 if (doomed.Count > 0)
@@ -47,23 +48,31 @@ public sealed class PendingCleanupService(IServiceScopeFactory scopeFactory, ILo
                         .ExecuteDeleteAsync(ct);
 
                     log.LogWarning(
-                         "Cleanup: deleted {Deleted} orders older than {Age} with no PaymentIntentId. Orders: {Orders}",
-                         deleted, MaxAge, orderNumbers
-                         );
-                    if (inventroy is not null)
-                        await inventroy.ReleaseExpiredAsync(ct);
+                        "Cleanup: deleted {Deleted} orders older than {Age} with no PaymentIntentId. Orders: {Orders}",
+                        deleted, MaxAge, orderNumbers
+                    );
+
+                    if (inventory is not null)
+                        await inventory.ReleaseExpiredAsync(ct);
                 }
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
+                return; 
             }
             catch (Exception ex)
             {
                 log.LogError(ex, "Cleanup failed");
             }
 
-
-            await Task.Delay(Interval, ct);
+            try
+            {
+                await Task.Delay(Interval, ct);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                return;
+            }
         }
     }
 }

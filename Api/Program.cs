@@ -22,6 +22,7 @@ using InfrastructureTokenService = Infrastructure.Services.TokenService;
 
 var builder = WebApplication.CreateBuilder(args);
 
+
 //Cors Configuration.
 builder.Services.AddCors(o =>
     o.AddPolicy("AllowFrontend", p => p
@@ -50,13 +51,15 @@ builder.Services.AddDbContext<PallshoppenDbContext>(options =>
     {
         x.MigrationsAssembly("Infrastructure");
         x.MigrationsHistoryTable("__EFMigrationsHistory", "core");
+        x.EnableRetryOnFailure(5, TimeSpan.FromSeconds(5), null);
     }));
 builder.Services.AddDbContext<AuthDbContext>(options =>
         options.UseSqlServer(conn, x =>
         {
             x.MigrationsAssembly("Infrastructure");
             x.MigrationsHistoryTable("__EFMigrationsHistory", "auth");
-        })); //jaja byt sen jag är inte rik. 
+            x.EnableRetryOnFailure(5, TimeSpan.FromSeconds(5), null);
+        })); 
 
 //Stripe configuration
 var stripeSection = builder.Configuration.GetSection("Stripe");
@@ -161,9 +164,25 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
+
 app.Logger.LogInformation("Stripe configured? Secret present: {HasKey}", !string.IsNullOrWhiteSpace(secretKey));
 
-await IdentitySeeder.SeedAsync(app.Services);
+
+
+using (var scope = app.Services.CreateScope())
+{
+    var coreDb = scope.ServiceProvider.GetRequiredService<PallshoppenDbContext>();
+    var authDb = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+
+    await coreDb.Database.MigrateAsync();
+    await authDb.Database.MigrateAsync();
+}
+
 app.MapOpenApi("/openapi.json");
 
 //Scalar API Reference
@@ -176,8 +195,6 @@ app.MapScalarApiReference(options =>
 
 app.MapGet("/", () => Results.Redirect("/scalar"))
     .ExcludeFromDescription();
-
-app.UseHttpsRedirection();
 
 app.UseStaticFiles();
 
