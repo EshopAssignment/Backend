@@ -172,17 +172,6 @@ if (!app.Environment.IsDevelopment())
 
 app.Logger.LogInformation("Stripe configured? Secret present: {HasKey}", !string.IsNullOrWhiteSpace(secretKey));
 
-
-
-using (var scope = app.Services.CreateScope())
-{
-    var coreDb = scope.ServiceProvider.GetRequiredService<PallshoppenDbContext>();
-    var authDb = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
-
-    await coreDb.Database.MigrateAsync();
-    await authDb.Database.MigrateAsync();
-}
-
 app.MapOpenApi("/openapi.json");
 
 //Scalar API Reference

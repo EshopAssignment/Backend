@@ -19,7 +19,7 @@ public static class ProductSeeder
             .ToDictionaryAsync(p => p.Sku!, ct);
 
         var curated = GetCurated();
-        UpsertRange(existingBySku, curated);
+        UpsertRange(db, existingBySku, curated);
 
         var currentCount = await db.Products.CountAsync(ct);
         var missing = Math.Max(0, TargetCount - currentCount);
@@ -27,13 +27,13 @@ public static class ProductSeeder
         if (missing > 0)
         {
             var generated = Generate(missing, seedOffset: curated.Count);
-            UpsertRange(existingBySku, generated);
+            UpsertRange(db, existingBySku, generated);
         }
 
         await db.SaveChangesAsync(ct);
     }
 
-    private static void UpsertRange(Dictionary<string, Product> existingBySku, IEnumerable<Product> incoming)
+    private static void UpsertRange(PallshoppenDbContext db, Dictionary<string, Product> existingBySku, IEnumerable<Product> incoming)
     {
         foreach (var p in incoming)
         {
@@ -57,6 +57,7 @@ public static class ProductSeeder
             }
             else
             {
+                db.Products.Add(p);              
                 existingBySku[p.Sku!] = p;
             }
         }
