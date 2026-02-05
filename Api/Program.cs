@@ -203,4 +203,6 @@ app.Use(async (ctx, next) =>
 });
 app.MapControllers();
 
+
 app.Run();
+public partial class Program { }
