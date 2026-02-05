@@ -3,7 +3,6 @@
     <File Path=".env" />
     <File Path=".env.dummy" />
   </Folder>
-  <Project Path="../IntegrationTests/IntegrationTests.csproj" Id="d4c1aa9a-2443-4836-990f-a6019cad0086" />
   <Project Path="Api/Api.csproj" Id="77780543-3695-4ddf-b48d-737ca0417beb" />
   <Project Path="Application/Application.csproj" Id="33ab3594-d975-47e2-8517-e281ecab27ad" />
   <Project Path="docker-compose.dcproj">
@@ -11,4 +10,5 @@
   </Project>
   <Project Path="Domain/Domain.csproj" Id="a783fcb3-60ae-455b-ae2b-57638a43cbfe" />
   <Project Path="Infrastructure/Infrastructure.csproj" Id="9142d77c-7ea3-4c42-93ff-1e54a7d9defc" />
+  <Project Path="IntegrationTests/IntegrationTests.csproj" />
 </Solution>
