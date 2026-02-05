@@ -1,5 +1,5 @@
-﻿
-namespace IntegrationTests.Infrastructure;
+﻿namespace IntegrationTests.Infrastructure;
+
 
 
 [CollectionDefinition("db")]
