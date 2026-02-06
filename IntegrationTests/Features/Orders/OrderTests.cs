@@ -187,6 +187,7 @@ public sealed class OrderTests(CustomWebApplicationFactory factory, DbFixture db
     public async Task GetByNumebr_blank_returns_404()
     {
         await _db.ResetAsync();
+
         var res = await _client.GetAsync($"{OrderUrl}/by-number/   ");
         res.StatusCode.Should().Be(HttpStatusCode.NotFound);
 
