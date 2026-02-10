@@ -1,0 +1,30 @@
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "YourStrong!Passw0rd"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'YourStrong!Passw0rd' -Q 'SELECT 1' || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  tests:
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    working_dir: /src
+    volumes:
+      - ./:/src
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Test"
+      ConnectionStrings__DefaultConnection: "Server=db;Database=EshopTestDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;Encrypt=False;"
+      Stripe__SecretKey: "dummy"
+      Jwt__Issuer: "Pallshoppen"
+      Jwt__Audience: "Pallshoppen.Client"
+      Jwt__Key: "dummy-dummy-dummy-dummy"
+    command: >
+      bash -lc "dotnet test ./IntegrationTests/IntegrationTests.csproj -c Release --logger 'trx;LogFileName=test_results.trx'"
+
