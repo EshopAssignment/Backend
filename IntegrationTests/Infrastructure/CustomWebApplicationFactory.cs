@@ -1,10 +1,8 @@
-﻿using System.Linq;
-using Application.Interfaces;
+﻿using Application.Interfaces;
 using Infrastructure.Persistence;
 using IntegrationTests.Infrastructure.Fakes;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,7 +18,8 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
         builder.ConfigureAppConfiguration((_, config) =>
         {
             var cs = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
-                     ?? throw new InvalidOperationException("Missing ConnectionStrings__DefaultConnection for integration tests.");
+                     ?? throw new InvalidOperationException(
+                         "Missing ConnectionStrings__DefaultConnection for integration tests.");
 
             var settings = new Dictionary<string, string?>
             {
@@ -40,11 +39,12 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
 
         builder.ConfigureServices(services =>
         {
+            var cs = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
+                     ?? throw new InvalidOperationException(
+                         "Missing ConnectionStrings__DefaultConnection for integration tests.");
+
             services.RemoveAll<DbContextOptions<PallshoppenDbContext>>();
             services.RemoveAll<DbContextOptions<AuthDbContext>>();
-
-            var cs = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
-                     ?? throw new InvalidOperationException("Missing ConnectionStrings__DefaultConnection for integration tests.");
 
             services.AddDbContext<PallshoppenDbContext>(opt =>
                 opt.UseSqlServer(cs, x =>
@@ -60,22 +60,10 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
                     x.MigrationsHistoryTable("__EFMigrationsHistory", "auth");
                 }));
 
-
             services.RemoveAll<IHostedService>();
 
             services.RemoveAll<IInventoryService>();
             services.AddSingleton<IInventoryService, FakeInventoryService>();
-
-            var sp = services.BuildServiceProvider();
-            using var scope = sp.CreateScope();
-            var coreDb = scope.ServiceProvider.GetRequiredService<PallshoppenDbContext>();
-            var authDb = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
-
-
         });
-
-
     }
-
-
 }

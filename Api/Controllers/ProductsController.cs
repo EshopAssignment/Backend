@@ -24,9 +24,20 @@ public class ProductsController(IProductService productService) : ControllerBase
         [FromQuery] bool? inStock = null,
         CancellationToken cancellationtoken = default)
     {
+
+        try
+        { 
+
         var products = await productService.GetAllAsync(
             page, pageSize, query, sort, type, condition, minPrice, maxPrice, inStock, cancellationtoken);
+
         return Ok(products);
+        
+        }
+        catch(ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     [HttpGet("{id:int}")]

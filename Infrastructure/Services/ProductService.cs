@@ -5,10 +5,11 @@ using Application.Interfaces;
 using Domain.Enums;
 using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Infrastructure.Services;
 
-public class ProductService(PallshoppenDbContext dbContext, ProductAssembler assembler) : IProductService
+public class ProductService(PallshoppenDbContext dbContext, ProductAssembler assembler, ILogger<DatabaseInitializerHostedService> logger) : IProductService
 {
     private static TEnum ParseEnum<TEnum>(string? value, string paramName) where TEnum : struct, Enum
     {
@@ -21,6 +22,10 @@ public class ProductService(PallshoppenDbContext dbContext, ProductAssembler ass
 
     public async Task<PagedResult<ProductDto>> GetAllAsync(int page, int pageSize, string? query, string? sort, List<string>? type, List<string>? condition, decimal? minPrice, decimal? maxPrice, bool? inStock, CancellationToken ct)
     {
+        page = page < 1 ? 1 : page;
+        pageSize = pageSize < 1 ? 20 : pageSize;
+        pageSize = pageSize > 200 ? 200 : pageSize;
+
         var q = dbContext.Products.AsNoTracking().Where(p => p.IsActive);
 
         if (!string.IsNullOrWhiteSpace(query))
@@ -53,12 +58,16 @@ public class ProductService(PallshoppenDbContext dbContext, ProductAssembler ass
             q = q.Where(p => (p.OnHand - p.Reserved) > 0);
         }
 
-        q = sort switch
+        var s = sort?.Trim();
+
+        q = s switch
         {
             "price_asc" => q.OrderBy(p => p.PriceExVat),
             "price_desc" => q.OrderByDescending(p => p.PriceExVat),
-            "name_asc" => q.OrderBy(p => p.Name),
-            "name_desc" => q.OrderByDescending(p => p.Name),
+
+            "name_asc" => q.OrderBy(p => EF.Functions.Collate(p.Name, "Latin1_General_100_BIN2")),
+            "name_desc" => q.OrderByDescending(p => EF.Functions.Collate(p.Name, "Latin1_General_100_BIN2")),
+
             _ => q.OrderBy(p => p.Id),
         };
 

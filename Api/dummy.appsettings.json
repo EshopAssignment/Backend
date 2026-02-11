@@ -15,16 +15,16 @@
       "Default": "Information",
       "Microsoft": "Warning",
       "Microsoft.Hosting.Lifetime": "Information"
-    },
-    "Stripe": {
-      "PublishableKey": "m",
-      "SecretKey": "s",
-      "WebhookSecret": "w."
-    },
-    "PostNord": {
-      "BaseUrl": "https://atapi2.postnord.com/rest/businesslocation",
-      "ApiKey": "https://atdeveloper.postnord.com/admin/applications?tab=apps"
-    },
-    "AllowedHosts": "*"
-  }
+    }
+  },
+  "Stripe": {
+    "PublishableKey": "m",
+    "SecretKey": "s",
+    "WebhookSecret": "w."
+  },
+  "PostNord": {
+    "BaseUrl": "https://atapi2.postnord.com/rest/businesslocation",
+    "ApiKey": "https://atdeveloper.postnord.com/admin/applications?tab=apps"
+  },
+  "AllowedHosts": "*"
 }
