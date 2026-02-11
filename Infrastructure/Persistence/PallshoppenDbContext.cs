@@ -85,6 +85,10 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
 
     private static void ConfigureOrder(EntityTypeBuilder<Order> entity)
     {
+        entity.HasKey(o => o.Id);
+        entity.Property(o => o.Id)
+            .ValueGeneratedOnAdd();
+
         entity.HasIndex(o => o.OrderNumber).IsUnique();
 
         entity.Property(o => o.OrderNumber).HasMaxLength(32).IsRequired();

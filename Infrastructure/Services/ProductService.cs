@@ -22,6 +22,10 @@ public class ProductService(PallshoppenDbContext dbContext, ProductAssembler ass
 
     public async Task<PagedResult<ProductDto>> GetAllAsync(int page, int pageSize, string? query, string? sort, List<string>? type, List<string>? condition, decimal? minPrice, decimal? maxPrice, bool? inStock, CancellationToken ct)
     {
+        page = page < 1 ? 1 : page;
+        pageSize = pageSize < 1 ? 20 : pageSize;
+        pageSize = pageSize > 200 ? 200 : pageSize;
+
         var q = dbContext.Products.AsNoTracking().Where(p => p.IsActive);
 
         if (!string.IsNullOrWhiteSpace(query))

@@ -43,6 +43,9 @@ public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authCont
         _db.Orders.Add(order);
         await _db.SaveChangesAsync(ct);
 
+        if (order.Id <= 0)
+            throw new InvalidOperationException($"Order saved but Id not generated. Id={order.Id}, OrderNumber={order.OrderNumber}");
+
         return _assembler.ToCreatedDto(order);
     }
     public async Task<OrderCreatedDto?> GetByIdAsync(int id, CancellationToken ct)
