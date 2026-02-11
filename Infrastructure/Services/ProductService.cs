@@ -5,10 +5,11 @@ using Application.Interfaces;
 using Domain.Enums;
 using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Infrastructure.Services;
 
-public class ProductService(PallshoppenDbContext dbContext, ProductAssembler assembler) : IProductService
+public class ProductService(PallshoppenDbContext dbContext, ProductAssembler assembler, ILogger<DatabaseInitializerHostedService> logger) : IProductService
 {
     private static TEnum ParseEnum<TEnum>(string? value, string paramName) where TEnum : struct, Enum
     {
@@ -53,7 +54,11 @@ public class ProductService(PallshoppenDbContext dbContext, ProductAssembler ass
             q = q.Where(p => (p.OnHand - p.Reserved) > 0);
         }
 
-        q = sort switch
+        logger.LogInformation("GetAll sort = {Sort}", sort);
+
+        var s = sort?.Trim().ToLowerInvariant();
+
+        q = s switch
         {
             "price_asc" => q.OrderBy(p => p.PriceExVat),
             "price_desc" => q.OrderByDescending(p => p.PriceExVat),

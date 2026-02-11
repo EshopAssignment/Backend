@@ -121,6 +121,8 @@ public sealed class DbFixture : IAsyncLifetime
                 x.EnableRetryOnFailure(5, TimeSpan.FromSeconds(5), null);
             }));
 
+        services.AddDataProtection();
+
         services
             .AddIdentityCore<User>()
             .AddRoles<AppRole>()
