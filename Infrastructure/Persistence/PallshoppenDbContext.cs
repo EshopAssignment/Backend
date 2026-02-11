@@ -87,6 +87,7 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
     {
         entity.HasKey(o => o.Id);
         entity.Property(o => o.Id)
+            .UseIdentityColumn()
             .ValueGeneratedOnAdd();
 
         entity.HasIndex(o => o.OrderNumber).IsUnique();

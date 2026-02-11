@@ -161,9 +161,12 @@ builder.Services.AddAuthentication(o =>
 
 builder.Services.AddAuthorization();
 
-
-
-
+if (!builder.Environment.IsEnvironment("Test"))
+{
+    builder.Services.AddHostedService<DatabaseInitializerHostedService>();
+    builder.Services.AddHostedService<PendingCleanupService>();
+    builder.Services.AddHostedService<StockReservationDeleteService>();
+}
 
 var app = builder.Build();
 

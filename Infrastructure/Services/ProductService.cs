@@ -58,16 +58,16 @@ public class ProductService(PallshoppenDbContext dbContext, ProductAssembler ass
             q = q.Where(p => (p.OnHand - p.Reserved) > 0);
         }
 
-        logger.LogInformation("GetAll sort = {Sort}", sort);
-
-        var s = sort?.Trim().ToLowerInvariant();
+        var s = sort?.Trim();
 
         q = s switch
         {
             "price_asc" => q.OrderBy(p => p.PriceExVat),
             "price_desc" => q.OrderByDescending(p => p.PriceExVat),
-            "name_asc" => q.OrderBy(p => p.Name),
-            "name_desc" => q.OrderByDescending(p => p.Name),
+
+            "name_asc" => q.OrderBy(p => EF.Functions.Collate(p.Name, "Latin1_General_100_BIN2")),
+            "name_desc" => q.OrderByDescending(p => EF.Functions.Collate(p.Name, "Latin1_General_100_BIN2")),
+
             _ => q.OrderBy(p => p.Id),
         };
 
