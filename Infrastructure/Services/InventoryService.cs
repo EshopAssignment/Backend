@@ -221,102 +221,121 @@ public class InventoryService(PallshoppenDbContext dbContext) : IInventoryServic
         if (ex.InnerException is not SqlException sql) return false;
         return sql.Number is 2601 or 2627;
     }
-    public async Task<(bool ok, string? error)> SetReservationQtyAsync(int productId, int desiredQty, string cartId, TimeSpan ttl, CancellationToken ct)
+    public async Task<(bool ok, string? error)> SetReservationQtyAsync(
+        int productId,
+        int desiredQty,
+        string cartId,
+        TimeSpan ttl,
+        CancellationToken ct)
     {
         if (desiredQty < 0) return (false, "QTY_INVALID");
 
         var now = DateTimeOffset.UtcNow;
+        var strat = dbContext.Database.CreateExecutionStrategy();
 
-        await using var tx = await dbContext.Database.BeginTransactionAsync(ct);
-
-        var existing = await dbContext.StockReservations
-        .FromSqlRaw(@"
-            SELECT * FROM [core].[StockReservations] WITH (UPDLOCK, HOLDLOCK)
-            WHERE CartId = {0} AND ProductId = {1} AND Status = {2}",
-            cartId, productId, StockReservationStatus.Active)
-        .FirstOrDefaultAsync(ct);
-
-        var currentQty = existing?.Quantity ?? 0;
-        if (currentQty == desiredQty)
+        return await strat.ExecuteAsync(async () =>
         {
-            if(existing is not null)
+            await using var tx = await dbContext.Database.BeginTransactionAsync(ct);
+
+            try
             {
-                existing.ExpiresAt = now.Add(ttl);
+                var existing = await dbContext.StockReservations
+                    .FromSqlRaw(@"
+                    SELECT * FROM [core].[StockReservations] WITH (UPDLOCK, HOLDLOCK)
+                    WHERE CartId = {0} AND ProductId = {1} AND Status = {2}",
+                        cartId, productId, StockReservationStatus.Active)
+                    .FirstOrDefaultAsync(ct);
+
+                var currentQty = existing?.Quantity ?? 0;
+                if (currentQty == desiredQty)
+                {
+                    if (existing is not null)
+                    {
+                        existing.ExpiresAt = now.Add(ttl);
+                        await dbContext.SaveChangesAsync(ct);
+                        await tx.CommitAsync(ct);
+                    }
+                    else
+                    {
+                        await tx.RollbackAsync(ct);
+                    }
+
+                    return (true, null);
+                }
+
+                var delta = desiredQty - currentQty;
+
+                if (delta > 0)
+                {
+                    var affected = await dbContext.Database.ExecuteSqlRawAsync(
+                        "UPDATE [core].[Products] SET Reserved = Reserved + {0} " +
+                        "WHERE Id = {1} AND (OnHand - Reserved) >= {0}",
+                        new object[] { delta, productId }, ct);
+
+                    if (affected == 0)
+                    {
+                        await tx.RollbackAsync(ct);
+                        return (false, "INSUFFICIENT_AVAILABLE");
+                    }
+                }
+                else if (delta < 0)
+                {
+                    var dec = -delta;
+                    var affected = await dbContext.Database.ExecuteSqlRawAsync(
+                        "UPDATE [core].[Products] SET Reserved = Reserved - {0} " +
+                        "WHERE Id = {1} AND Reserved >= {0}",
+                        new object[] { dec, productId }, ct);
+
+                    if (affected == 0)
+                    {
+                        await tx.RollbackAsync(ct);
+                        return (false, "RESERVED_UNDERFLOW");
+                    }
+                }
+
+                if (desiredQty == 0)
+                {
+                    if (existing is not null)
+                    {
+                        existing.Status = StockReservationStatus.Released;
+                        existing.ExpiresAt = now;
+                        await dbContext.SaveChangesAsync(ct);
+                    }
+
+                    await tx.CommitAsync(ct);
+                    return (true, null);
+                }
+
+                if (existing is null)
+                {
+                    dbContext.StockReservations.Add(new StockReservation
+                    {
+                        ProductId = productId,
+                        Quantity = desiredQty,
+                        CartId = cartId,
+                        ExpiresAt = now.Add(ttl),
+                        Status = StockReservationStatus.Active,
+                        CreatedAt = now
+                    });
+                }
+                else
+                {
+                    existing.Quantity = desiredQty;
+                    existing.ExpiresAt = now.Add(ttl);
+                }
+
                 await dbContext.SaveChangesAsync(ct);
                 await tx.CommitAsync(ct);
+                return (true, null);
             }
-            else
+            catch
             {
                 await tx.RollbackAsync(ct);
+                throw;
             }
-
-            return (true, null);
-        }
-
-        var delta = desiredQty - currentQty;
-
-        if (delta > 0 )
-        {
-            var affected = await dbContext.Database.ExecuteSqlRawAsync(
-            "UPDATE [core].[Products] SET Reserved = Reserved + {0} " +
-            "WHERE Id = {1} AND (OnHand - Reserved) >= {0}",
-            [delta, productId], ct);
-
-            if (affected == 0)
-            {
-                await tx.RollbackAsync(ct);
-                return (false, "INSUFFICIENT_AVAILABLE");
-            }
-        } else if (delta < 0)
-        {
-            var dec = -delta;
-            var affected = await dbContext.Database.ExecuteSqlRawAsync(
-            "UPDATE [core].[Products] SET Reserved = Reserved - {0} " +
-            "WHERE Id = {1} AND Reserved >= {0}",
-            [dec, productId], ct);
-
-            if ( affected == 0)
-            {
-                await tx.RollbackAsync(ct);
-                return (false, "RESERVED_UNDERFLOW");
-            }
-        }
-
-        if(desiredQty == 0)
-        {
-            if(existing is not null)
-            {
-                existing.Status = StockReservationStatus.Released;
-                existing.ExpiresAt = now;
-                await dbContext.SaveChangesAsync(ct);
-            }
-
-            await tx.CommitAsync(ct);
-            return (true, null);
-        }
-
-        if (existing is null )
-        {
-            dbContext.StockReservations.Add(new StockReservation
-            {
-                ProductId = productId,
-                Quantity = desiredQty,
-                CartId = cartId,
-                ExpiresAt = now.Add(ttl),
-                Status = StockReservationStatus.Active,
-                CreatedAt = now
-            });
-        }
-        else
-        {
-            existing.Quantity = desiredQty;
-            existing.ExpiresAt = now.Add(ttl);
-        }
-        await dbContext.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
-        return (true, null);
-
+        });
     }
+
     public async Task<(bool ok, string? error)> VerifyCartReservationAsync(string cartId, IReadOnlyList<(int productId, int qty)> items, CancellationToken ct)
     {
         var active = await dbContext.StockReservations
