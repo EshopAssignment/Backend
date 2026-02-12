@@ -47,12 +47,15 @@ public sealed class OrderTests(CustomWebApplicationFactory factory, DbFixture db
 
         var res = await _client.PostAsJsonAsync(OrderUrl, req);
 
+        var raw = await res.Content.ReadAsStringAsync();
+        Console.WriteLine(raw);
+
         res.StatusCode.Should().Be(HttpStatusCode.Created);
 
         res.Headers.Location.Should().NotBeNull();
 
         var created = await res.ReadJsonAsync<OrderCreatedDto>();
-        created.Id.Should().BeGreaterThan(0);
+        created.OrderId.Should().BeGreaterThan(0);
         created.OrderNumber.Should().StartWith("ORD-");
     }
 
@@ -136,25 +139,26 @@ public sealed class OrderTests(CustomWebApplicationFactory factory, DbFixture db
         {
             CartId = Guid.NewGuid().ToString("N"),
             Items = new()
+        {
+            new CreateOrderItemRequestDto
             {
-                new CreateOrderItemRequestDto
-                {
-                    ProductId = productId,
-                    Quantity = 1
-                }
+                ProductId = productId,
+                Quantity = 1
             }
+        }
         });
 
         createRes.StatusCode.Should().Be(HttpStatusCode.Created);
         var created = await createRes.ReadJsonAsync<OrderCreatedDto>();
 
-        var getRes = await _client.GetAsync($"{OrderUrl}/{created.Id}");
+        var getRes = await _client.GetAsync($"{OrderUrl}/{created.OrderId}");
         getRes.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var fetched = await getRes.ReadJsonAsync<OrderCreatedDto>();
-        fetched.Id.Should().Be(created.Id);
+        fetched.OrderId.Should().Be(created.OrderId);
         fetched.OrderNumber.Should().Be(created.OrderNumber);
     }
+
 
     [Fact]
     public async Task Create_then_getByNumber_returns_200()
