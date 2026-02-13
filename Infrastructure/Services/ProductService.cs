@@ -9,6 +9,7 @@ using Domain.Enums;
 using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace Infrastructure.Services;
@@ -17,7 +18,8 @@ public class ProductService(
     PallshoppenDbContext dbContext,
     ProductAssembler assembler,
     IDistributedCache cache,
-    ILogger<ProductService> logger) : IProductService
+    ILogger<ProductService> logger,
+    IConfiguration config) : IProductService
 {
     private static TEnum ParseEnum<TEnum>(string? value, string paramName) where TEnum : struct, Enum
     {
@@ -25,7 +27,8 @@ public class ProductService(
         if (Enum.TryParse<TEnum>(value, true, out var parsed)) return parsed;
         throw new ArgumentException($"Inavlid value '{value}' for {typeof(TEnum).Name}", paramName);
     }
-    private readonly ProductAssembler _assembler = assembler;   
+    private readonly ProductAssembler _assembler = assembler;
+    private readonly bool _cacheEnabled = config.GetValue("Cache:Enabled", true); // flag to enable/disable caching
 
     private static readonly JsonSerializerOptions CacheJson = new()
     {
@@ -57,11 +60,16 @@ public class ProductService(
 
         var cacheKey = MakeKey("products:list", rawKey);
 
-        var cached = await cache.GetStringAsync(cacheKey, ct);
-        if (cached is not null)
+
+        if(_cacheEnabled)
         {
-            logger.LogInformation("Redis HIT {CacheKey}", cacheKey);
-            return JsonSerializer.Deserialize<PagedResult<ProductDto>>(cached, CacheJson)!;
+            var cached = await cache.GetStringAsync(cacheKey, ct);
+            if (cached is not null)
+            {
+                logger.LogInformation("Redis HIT {CacheKey}", cacheKey);
+                return JsonSerializer.Deserialize<PagedResult<ProductDto>>(cached, CacheJson)!;
+            }
+
         }
 
         logger.LogInformation("Redis MISS {CacheKey}", cacheKey);
@@ -139,11 +147,16 @@ public class ProductService(
     {
         var cacheKey = $"products:byid:{id}";
 
-        var cached = await cache.GetStringAsync(cacheKey, cancellationToken);
-        if(cached is not null)
+
+        if (_cacheEnabled)
         {
-            logger.LogInformation("Redis HIT {CacheKey}", cacheKey);
-            return JsonSerializer.Deserialize<ProductDto>(cached, CacheJson);
+
+            var cached = await cache.GetStringAsync(cacheKey, cancellationToken);
+            if(cached is not null)
+            {
+                logger.LogInformation("Redis HIT {CacheKey}", cacheKey);
+                return JsonSerializer.Deserialize<ProductDto>(cached, CacheJson);
+            }
         }
 
         logger.LogInformation("Redis MISS {CacheKey}", cacheKey);
@@ -174,12 +187,16 @@ public class ProductService(
         var rawKey = $"q={term}&take={size}";
         var cacheKey = MakeKey("products:suggest", rawKey);
 
-        var cached = await cache.GetStringAsync(cacheKey, ct);
-        if (cached is not null)
+        if (_cacheEnabled)
         {
-            logger.LogInformation("Redis HIT {CacheKey}", cacheKey);
-            return JsonSerializer.Deserialize<List<ProductSuggestionDto>>(cached, CacheJson)!;
+            var cached = await cache.GetStringAsync(cacheKey, ct);
+            if (cached is not null)
+            {
+                logger.LogInformation("Redis HIT {CacheKey}", cacheKey);
+                return JsonSerializer.Deserialize<List<ProductSuggestionDto>>(cached, CacheJson)!;
+            }
         }
+
 
         logger.LogInformation("Redis MISS {CacheKey}", cacheKey);
 
