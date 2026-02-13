@@ -20,9 +20,12 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       ASPNETCORE_URLS: "http://+:8080"
       ASPNETCORE_ENVIRONMENT: "Development"
+      Redis__ConnectionString: "redis:6379"
       ConnectionStrings__DefaultConnection: "Server=db;Database=EshopDb;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False;"
       Stripe__SecretKey: "${STRIPE_SECRET_KEY}"
       Stripe__PublishableKey: "${STRIPE_PUBLISHABLE_KEY}"
@@ -41,5 +44,16 @@ services:
       retries: 30
       start_period: 20s
 
+  redis:
+    image: redis:latest
+    container_name: pallshoppen-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 volumes:
   mssql_data:
+
