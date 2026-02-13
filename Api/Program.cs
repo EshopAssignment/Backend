@@ -104,11 +104,6 @@ builder.Services.AddScoped<IAdminProductService, AdminProductService>();
 builder.Services.AddScoped<IInventoryService, InventoryService>();
 builder.Services.AddSingleton(_ => new Stripe.StripeClient(secretKey));
 
-//Register HostedService(Background seeder)
-builder.Services.AddHostedService<DatabaseInitializerHostedService>();
-builder.Services.AddHostedService<PendingCleanupService>();
-builder.Services.AddHostedService<StockReservationDeleteService>();
-
 //Token Service
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.AddScoped<ITokenRefreshStore, TokenRefreshStore>();
@@ -161,6 +156,11 @@ builder.Services.AddAuthentication(o =>
 
 builder.Services.AddAuthorization();
 
+//healthcheck
+builder.Services
+    .AddHealthChecks()
+    .AddSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")!);
+
 if (!builder.Environment.IsEnvironment("Test"))
 {
     builder.Services.AddHostedService<DatabaseInitializerHostedService>();
@@ -169,6 +169,8 @@ if (!builder.Environment.IsEnvironment("Test"))
 }
 
 var app = builder.Build();
+
+app.MapHealthChecks("/health");
 
 if (!app.Environment.IsDevelopment())
 {

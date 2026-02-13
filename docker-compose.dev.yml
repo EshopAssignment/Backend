@@ -1,0 +1,19 @@
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: pallshoppen-db-dev
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "Bytmig123!"
+    ports:
+      - "1433:1433"
+    volumes:
+      - pallshoppen_sql_dev:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"Bytmig123!\" -C -Q \"SELECT 1\" > /dev/null || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  pallshoppen_sql_dev:
