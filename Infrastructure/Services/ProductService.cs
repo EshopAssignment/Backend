@@ -1,15 +1,23 @@
 ﻿
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using Application.Assemblers;
 using Application.DTOs.Product;
 using Application.Interfaces;
 using Domain.Enums;
 using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 
 namespace Infrastructure.Services;
 
-public class ProductService(PallshoppenDbContext dbContext, ProductAssembler assembler, ILogger<DatabaseInitializerHostedService> logger) : IProductService
+public class ProductService(
+    PallshoppenDbContext dbContext,
+    ProductAssembler assembler,
+    IDistributedCache cache,
+    ILogger<ProductService> logger) : IProductService
 {
     private static TEnum ParseEnum<TEnum>(string? value, string paramName) where TEnum : struct, Enum
     {
@@ -19,34 +27,66 @@ public class ProductService(PallshoppenDbContext dbContext, ProductAssembler ass
     }
     private readonly ProductAssembler _assembler = assembler;   
 
+    private static readonly JsonSerializerOptions CacheJson = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+    private static string MakeKey(string prefix, string raw)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(raw));
+        return $"{prefix}:{Convert.ToHexString(bytes)}";
+    }
+
 
     public async Task<PagedResult<ProductDto>> GetAllAsync(int page, int pageSize, string? query, string? sort, List<string>? type, List<string>? condition, decimal? minPrice, decimal? maxPrice, bool? inStock, CancellationToken ct)
     {
-        page = page < 1 ? 1 : page;
+        page = page <1 ? 1 : page;
         pageSize = pageSize < 1 ? 20 : pageSize;
         pageSize = pageSize > 200 ? 200 : pageSize;
 
-        var q = dbContext.Products.AsNoTracking().Where(p => p.IsActive);
+        var qTerm = query?.Trim();
+        var s = sort?.Trim();
 
-        if (!string.IsNullOrWhiteSpace(query))
+        var typeNorm = type?.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).OrderBy(x => x).ToArray() ?? [];
+        var condNorm = condition?.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).OrderBy(x => x).ToArray() ?? [];
+
+        var rawKey =
+           $"page={page}&pageSize={pageSize}&query={qTerm}&sort={s}&" +
+           $"type={string.Join(",", typeNorm)}&condition={string.Join(",", condNorm)}&" +
+           $"min={minPrice?.ToString() ?? ""}&max={maxPrice?.ToString() ?? ""}&inStock={inStock?.ToString() ?? ""}";
+
+        var cacheKey = MakeKey("products:list", rawKey);
+
+        var cached = await cache.GetStringAsync(cacheKey, ct);
+        if (cached is not null)
         {
-            var term = query.Trim();
-            q = q.Where(p =>
-                p.Name.Contains(term) ||
-                p.Description.Contains(term) ||
-                (p.Sku != null && p.Sku.Contains(term)) ||
-                (p.Slug != null && p.Slug.Contains(term)));
+            logger.LogInformation("Redis HIT {CacheKey}", cacheKey);
+            return JsonSerializer.Deserialize<PagedResult<ProductDto>>(cached, CacheJson)!;
         }
 
-        if (type is { Count: > 0 })
+        logger.LogInformation("Redis MISS {CacheKey}", cacheKey);
+
+        var q = dbContext.Products.AsNoTracking().Where(p => p.IsActive);
+
+        if (!string.IsNullOrWhiteSpace(qTerm))
         {
-            var parsed = type.Select(t => ParseEnum<ProductType>(t, nameof(type))).Distinct().ToArray();
+            q = q.Where(p =>
+            p.Name.Contains(qTerm) ||
+            p.Description.Contains(qTerm) ||
+            (p.Sku != null && p.Sku.Contains(qTerm)) ||
+            (p.Slug != null && p.Slug.Contains(qTerm)));
+        }
+
+        if (typeNorm.Length > 0) 
+        {
+            var parsed = typeNorm.Select(t => ParseEnum<ProductType>(t, nameof(type))).Distinct().ToArray();
             q = q.Where(p => parsed.Contains(p.PalletType));
         }
 
-        if (condition is { Count: > 0 })
+
+        if (typeNorm.Length > 0)
         {
-            var parsed = condition.Select(c => ParseEnum<ProductCondition>(c, nameof(condition))).Distinct().ToArray();
+            var parsed = typeNorm.Select(t => ParseEnum<ProductCondition>(t, nameof(condition))).Distinct().ToArray();
             q = q.Where(p => parsed.Contains(p.Condition));
         }
 
@@ -54,11 +94,7 @@ public class ProductService(PallshoppenDbContext dbContext, ProductAssembler ass
         if (maxPrice.HasValue) q = q.Where(p => p.PriceExVat <= maxPrice.Value);
 
         if (inStock == true)
-        {
             q = q.Where(p => (p.OnHand - p.Reserved) > 0);
-        }
-
-        var s = sort?.Trim();
 
         q = s switch
         {
@@ -73,28 +109,13 @@ public class ProductService(PallshoppenDbContext dbContext, ProductAssembler ass
 
         var total = await q.CountAsync(ct);
 
-        var items = await q
+        var items = await _assembler
+            .ProjectToDto(q)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(p => new ProductDto(
-                p.Id,
-                p.Name,
-                p.Description,
-                p.ImgUrl,
-                p.PriceExVat,
-                (int)p.VatRate,
-                p.PalletType.ToString(),
-                p.Condition.ToString(),
-                p.StockStatus.ToString(),
-                p.OnHand,
-                p.Reserved,
-                p.Available,
-                p.IsActive,
-                p.Sku,
-                p.Slug))
             .ToListAsync(ct);
 
-        return new PagedResult<ProductDto>
+        var result = new PagedResult<ProductDto>
         {
             Page = page,
             PageSize = pageSize,
@@ -102,20 +123,67 @@ public class ProductService(PallshoppenDbContext dbContext, ProductAssembler ass
             TotalPages = (int)Math.Ceiling(total / (double)pageSize),
             Items = items
         };
+
+        await cache.SetStringAsync(
+            cacheKey,
+            JsonSerializer.Serialize(result, CacheJson),
+            new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(60)
+            },
+            ct);
+
+        return result;
     }
     public async Task<ProductDto?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
+        var cacheKey = $"products:byid:{id}";
+
+        var cached = await cache.GetStringAsync(cacheKey, cancellationToken);
+        if(cached is not null)
+        {
+            logger.LogInformation("Redis HIT {CacheKey}", cacheKey);
+            return JsonSerializer.Deserialize<ProductDto>(cached, CacheJson);
+        }
+
+        logger.LogInformation("Redis MISS {CacheKey}", cacheKey);
+
         var p = await dbContext.Products.AsNoTracking()
             .FirstOrDefaultAsync(p => p.IsActive && p.Id == id, cancellationToken);
 
-        return p is null ? null : _assembler.ToDto(p);
+        if (p is null) return null;
+
+        var dto = _assembler.ToDto(p);
+
+        await cache.SetStringAsync(
+            cacheKey,
+            JsonSerializer.Serialize(dto, CacheJson),
+            new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(120)
+            },
+            cancellationToken);
+
+        return dto;
     }
     public async Task<IEnumerable<ProductSuggestionDto>> SuggestionAsync(string q, int take, CancellationToken ct)
     {
         var term = q.Trim();
         var size = Math.Clamp(take, 1, 20);
 
-        return await dbContext.Products
+        var rawKey = $"q={term}&take={size}";
+        var cacheKey = MakeKey("products:suggest", rawKey);
+
+        var cached = await cache.GetStringAsync(cacheKey, ct);
+        if (cached is not null)
+        {
+            logger.LogInformation("Redis HIT {CacheKey}", cacheKey);
+            return JsonSerializer.Deserialize<List<ProductSuggestionDto>>(cached, CacheJson)!;
+        }
+
+        logger.LogInformation("Redis MISS {CacheKey}", cacheKey);
+
+        var result = await dbContext.Products
             .AsNoTracking()
             .Where(p => p.IsActive &&
                 (EF.Functions.Like(p.Name, $"%{term}%") ||
@@ -124,14 +192,24 @@ public class ProductService(PallshoppenDbContext dbContext, ProductAssembler ass
             .OrderBy(p => p.Name)
             .Take(size)
             .Select(p => new ProductSuggestionDto(
-            p.Id,
-            p.Name,
-            p.PriceExVat,
-            p.ImgUrl,
-            p.Slug ?? "",
-            p.Sku ?? ""
-            ))
+                p.Id,
+                p.Name,
+                p.PriceExVat,
+                p.ImgUrl,
+                p.Slug ?? "",
+                p.Sku ?? ""))
             .ToListAsync(ct);
+
+        await cache.SetStringAsync(
+            cacheKey,
+            JsonSerializer.Serialize(result, CacheJson),
+            new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(30)
+            },
+            ct);
+
+        return result;
     }
 
 }
