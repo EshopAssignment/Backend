@@ -161,6 +161,12 @@ builder.Services
     .AddHealthChecks()
     .AddSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")!);
 
+//redis
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = builder.Configuration["Redis:ConnectionString"];
+});
+
 if (!builder.Environment.IsEnvironment("Test"))
 {
     builder.Services.AddHostedService<DatabaseInitializerHostedService>();
