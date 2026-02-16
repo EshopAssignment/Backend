@@ -6,10 +6,11 @@ using Domain.Entities;
 using Domain.Enums;
 using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 
 namespace Infrastructure.Services;
 
-public class AdminProductService(PallshoppenDbContext dbContext, ProductAssembler prodAssembler) : IAdminProductService
+public class AdminProductService(PallshoppenDbContext dbContext, ProductAssembler prodAssembler, IDistributedCache cache) : IAdminProductService
 {
     private readonly ProductAssembler _assembler = prodAssembler;
 
@@ -54,29 +55,10 @@ public class AdminProductService(PallshoppenDbContext dbContext, ProductAssemble
 
         var total = await q.CountAsync(ct);
 
-        var items = await q
-            .Skip((page - 1) * pageSize)
+        var items = await _assembler
+            .ProjectToDto(q)
+            .Skip((page -1) * pageSize)
             .Take(pageSize)
-            .Select(p => new ProductDto(
-            p.Id,
-            p.Name,
-            p.Description,
-            p.ImgUrl,
-
-            p.PriceExVat,
-            (int)p.VatRate,
-
-            p.PalletType.ToString(),
-            p.Condition.ToString(),
-            p.StockStatus.ToString(),
-
-            p.OnHand,
-            p.Reserved,
-            p.Available,
-
-            p.IsActive,
-            p.Sku,
-            p.Slug))
             .ToListAsync(ct);
 
         return new PagedResult<ProductDto>
@@ -129,6 +111,8 @@ public class AdminProductService(PallshoppenDbContext dbContext, ProductAssemble
         dbContext.Products.Add(entity);
         await dbContext.SaveChangesAsync(ct);
 
+
+        await InvalidatePublicListsAsync(cache, ct);
         return _assembler.ToDto(entity);
 
     }
@@ -163,6 +147,9 @@ public class AdminProductService(PallshoppenDbContext dbContext, ProductAssemble
 
 
         await dbContext.SaveChangesAsync(ct);
+
+        await cache.RemoveAsync($"products:byid:{id}", ct);
+        await InvalidatePublicListsAsync(cache, ct);
         return _assembler.ToDto(entity);
     }
     public async Task<bool> SetActiveAsync(int id, bool IsActive, CancellationToken ct)
@@ -181,6 +168,9 @@ public class AdminProductService(PallshoppenDbContext dbContext, ProductAssemble
 
         entity.IsActive = IsActive;
         await dbContext.SaveChangesAsync(ct);
+
+        await cache.RemoveAsync($"producs:byid:{id}", ct);
+        await InvalidatePublicListsAsync(cache, ct);
         return true;
     }
     public async Task SetImageUrlAsync(int id, string imgUrl, CancellationToken ct)
@@ -191,6 +181,9 @@ public class AdminProductService(PallshoppenDbContext dbContext, ProductAssemble
 
         entity.ImgUrl = url;
         await dbContext.SaveChangesAsync(ct);
+
+        await cache.RemoveAsync($"producs:byid:{id}", ct);
+        await InvalidatePublicListsAsync(cache, ct);
     }
     public async Task<ProductDto?> GetByIdAsync(int id, CancellationToken ct = default)
     {
@@ -249,4 +242,13 @@ public class AdminProductService(PallshoppenDbContext dbContext, ProductAssemble
 
         return true;
     }
+    private static Task BumpAsync(IDistributedCache cache, string key, CancellationToken ct)
+    {
+        return cache.SetStringAsync(key, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString(), ct);
+    }
+    private static Task InvalidatePublicListsAsync(IDistributedCache cache, CancellationToken ct)
+        => Task.WhenAll(
+            BumpAsync(cache, "products:ver:list", ct),
+            BumpAsync(cache, "products:ver:suggest", ct)
+            );
 }

@@ -1,34 +1,87 @@
 ﻿
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using Application.DTOs.Admin;
 using Application.DTOs.Product;
 using Application.Interfaces;
 using Domain.Enums;
 using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace Infrastructure.Services;
 
-public class AdminOrderService(PallshoppenDbContext dbContext) : IAdminOrderService
+public class AdminOrderService(
+    PallshoppenDbContext dbContext,
+    IDistributedCache cache,
+    IConfiguration config,
+    ILogger<AdminOrderService> logger) : IAdminOrderService
 {
-    public async Task<PagedResult<AdminOrderListItemDto>> GetAllAsync(int page, int pageSize, string? query, string? status, DateTime? from, DateTime? to, CancellationToken ct)
+    private readonly bool _cacheEnabled = config.GetValue("Cache:Enabled", true); // flag to enable/disable caching
+    private static readonly JsonSerializerOptions CacheJson = new()
     {
-        var q = dbContext.Orders.AsNoTracking().AsQueryable();
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
 
-        if (!string.IsNullOrWhiteSpace(query))
+    public async Task<PagedResult<AdminOrderListItemDto>> GetAllAsync(
+      int page, int pageSize, string? query, string? status, DateTime? from, DateTime? to, CancellationToken ct)
+    {
+        page = page < 1 ? 1 : page;
+        pageSize = pageSize < 1 ? 20 : pageSize;
+        pageSize = pageSize > 200 ? 200 : pageSize;
+
+        var qTerm = query?.Trim();
+        var sNorm = status?.Trim();
+
+        var ver = _cacheEnabled
+            ? (await cache.GetStringAsync("orders:ver:adminlist", ct) ?? "0")
+            : "0";
+
+        var fromKey = from.HasValue ? from.Value.ToUniversalTime().ToString("O") : "";
+        var toKey = to.HasValue ? to.Value.ToUniversalTime().ToString("O") : "";
+
+        var rawKey =
+            $"ver={ver}&page={page}&pageSize={pageSize}&q={qTerm}&status={sNorm}&from={fromKey}&to={toKey}";
+
+        var cacheKey = MakeKey("orders:adminlist", rawKey);
+
+        if (_cacheEnabled)
         {
-            var term = query.Trim();
+            var cached = await cache.GetStringAsync(cacheKey, ct);
+            if (!string.IsNullOrWhiteSpace(cached))
+            {
+                try
+                {
+                    logger.LogInformation("Redis HIT {CacheKey}", cacheKey);
+                    return JsonSerializer.Deserialize<PagedResult<AdminOrderListItemDto>>(cached, CacheJson)
+                           ?? throw new JsonException("Deserialized null");
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Redis DESERIALIZE FAILED {CacheKey}", cacheKey);
+                }
+            }
 
-            q = q.Where(o =>
-                o.OrderNumber.Contains(term) ||
-                (o.CustomerFirstName != null && o.CustomerFirstName.Contains(term)) ||
-                (o.CustomerLastName != null && o.CustomerLastName.Contains(term)) ||
-                (o.CustomerEmail != null && o.CustomerEmail.Contains(term)) ||
-                (o.CustomerPhoneNumber != null && o.CustomerPhoneNumber.Contains(term))
-            );
+            logger.LogInformation("Redis MISS {CacheKey}", cacheKey);
         }
 
-        if (!string.IsNullOrWhiteSpace(status) &&
-            Enum.TryParse<OrderStatus>(status, ignoreCase: true, out var parsed))
+        var q = dbContext.Orders.AsNoTracking().AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(qTerm))
+        {
+            q = q.Where(o =>
+                o.OrderNumber.Contains(qTerm) ||
+                (o.CustomerFirstName != null && o.CustomerFirstName.Contains(qTerm)) ||
+                (o.CustomerLastName != null && o.CustomerLastName.Contains(qTerm)) ||
+                (o.CustomerEmail != null && o.CustomerEmail.Contains(qTerm)) ||
+                (o.CustomerPhoneNumber != null && o.CustomerPhoneNumber.Contains(qTerm)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(sNorm) &&
+            Enum.TryParse<OrderStatus>(sNorm, ignoreCase: true, out var parsed))
         {
             q = q.Where(o => o.OrderStatus == parsed);
         }
@@ -56,7 +109,7 @@ public class AdminOrderService(PallshoppenDbContext dbContext) : IAdminOrderServ
             ))
             .ToListAsync(ct);
 
-        return new PagedResult<AdminOrderListItemDto>
+        var result = new PagedResult<AdminOrderListItemDto>
         {
             Page = page,
             PageSize = pageSize,
@@ -64,10 +117,45 @@ public class AdminOrderService(PallshoppenDbContext dbContext) : IAdminOrderServ
             TotalPages = (int)Math.Ceiling((double)total / pageSize),
             Items = items
         };
-    }
 
+        if (_cacheEnabled)
+        {
+            await cache.SetStringAsync(
+                cacheKey,
+                JsonSerializer.Serialize(result, CacheJson),
+                new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(10)
+                },
+                ct);
+        }
+
+        return result;
+    }
     public async Task<AdminOrderDetailsDto?> GetByIdAsync(int id, CancellationToken ct)
     {
+        var cacheKey = $"orders:admin:byid:{id}";
+
+        if (_cacheEnabled)
+        {
+            var cached = await cache.GetStringAsync(cacheKey, ct);
+            if (!string.IsNullOrWhiteSpace(cached))
+            {
+                try
+                {
+                    logger.LogInformation("Redis HIT {CacheKey}", cacheKey);
+                    return JsonSerializer.Deserialize<AdminOrderDetailsDto>(cached, CacheJson)
+                           ?? throw new JsonException("Deserialized null");
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Redis DESERIALIZE FAILED {CacheKey}", cacheKey);
+                }
+            }
+
+            logger.LogInformation("Redis MISS {CacheKey}", cacheKey);
+        }
+
         var o = await dbContext.Orders
             .AsNoTracking()
             .Include(x => x.OrderItems)
@@ -105,7 +193,7 @@ public class AdminOrderService(PallshoppenDbContext dbContext) : IAdminOrderServ
             ? null
             : $"https://tracking.postnord.com/?id={Uri.EscapeDataString(trackingNumber)}";
 
-        return new AdminOrderDetailsDto(
+        var dto = new AdminOrderDetailsDto(
             Id: o.Id,
             OrderNumber: o.OrderNumber,
             CreatedAtUtc: o.CreatedAt,
@@ -137,8 +225,21 @@ public class AdminOrderService(PallshoppenDbContext dbContext) : IAdminOrderServ
 
             Items: items
         );
-    }
 
+        if (_cacheEnabled)
+        {
+            await cache.SetStringAsync(
+                cacheKey,
+                JsonSerializer.Serialize(dto, CacheJson),
+                new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(20)
+                },
+                ct);
+        }
+
+        return dto;
+    }
     public async Task<bool> UpdateStatusAsync(int id, string newStatus, CancellationToken ct)
     {
         if (!Enum.TryParse<OrderStatus>(newStatus, ignoreCase: true, out var next))
@@ -164,9 +265,16 @@ public class AdminOrderService(PallshoppenDbContext dbContext) : IAdminOrderServ
         }
 
         await dbContext.SaveChangesAsync(ct);
+
+        if (_cacheEnabled)
+        {
+            await cache.RemoveAsync($"orders:admin:byid:{id}", ct);
+            await InvalidateAdminListAsync(cache, ct);
+        }
+
+
         return true;
     }
-
     public async Task<bool> SetTrackingAsync(int id, string trackingNumber, bool markAsShipped, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(trackingNumber))
@@ -181,6 +289,26 @@ public class AdminOrderService(PallshoppenDbContext dbContext) : IAdminOrderServ
             o.MarkShipped();
 
         await dbContext.SaveChangesAsync(ct);
+
+        if (_cacheEnabled)
+        {
+            await cache.RemoveAsync($"orders:admin:byid:{id}", ct);
+            await InvalidateAdminListAsync(cache, ct);
+        }
+
+
         return true;
     }
+    //caching Task
+    private static string MakeKey(string prefix, string raw)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(raw));
+        return $"{prefix}:{Convert.ToHexString(bytes)}";
+    }
+    private static Task BumpAsync(IDistributedCache cache, string key, CancellationToken ct)
+        => cache.SetStringAsync(key, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString(), ct);
+
+    private static Task InvalidateAdminListAsync(IDistributedCache cache, CancellationToken ct)
+        => BumpAsync(cache, "orders:ver:adminlist", ct);
+
 }
