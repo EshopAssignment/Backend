@@ -148,7 +148,7 @@ public class AdminProductService(PallshoppenDbContext dbContext, ProductAssemble
 
         await dbContext.SaveChangesAsync(ct);
 
-        await cache.RemoveAsync($"producs:byid:{id}", ct);
+        await cache.RemoveAsync($"products:byid:{id}", ct);
         await InvalidatePublicListsAsync(cache, ct);
         return _assembler.ToDto(entity);
     }
@@ -248,7 +248,7 @@ public class AdminProductService(PallshoppenDbContext dbContext, ProductAssemble
     }
     private static Task InvalidatePublicListsAsync(IDistributedCache cache, CancellationToken ct)
         => Task.WhenAll(
-            BumpAsync(cache, "products:vet:list", ct),
+            BumpAsync(cache, "products:ver:list", ct),
             BumpAsync(cache, "products:ver:suggest", ct)
             );
 }
