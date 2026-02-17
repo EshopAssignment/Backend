@@ -40,7 +40,9 @@ public class AcsEmailSender : IEmailSender
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Email sending failed to {Recipient}", to);
+            _logger.LogError(ex,
+                "email failed. This may be throttling/quota. To={Recipient} Subject={Subject}",
+                to, subject);
             throw;
         }
 
