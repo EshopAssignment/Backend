@@ -20,7 +20,8 @@ public class AdminOrderService(
     IConfiguration config,
     ILogger<AdminOrderService> logger) : IAdminOrderService
 {
-    private readonly bool _cacheEnabled = config.GetValue("Cache:Enabled", true); // flag to enable/disable caching
+    private readonly bool _cacheEnabled = config?.GetValue("Cache:Enabled", true)
+          ?? throw new ArgumentNullException(nameof(config), "IConfiguration is null. AdminOrderService is likely being constructed manually instead of via DI.");
     private static readonly JsonSerializerOptions CacheJson = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
