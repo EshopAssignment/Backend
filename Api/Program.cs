@@ -162,9 +162,9 @@ builder.Services
     .AddSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")!);
 
 //redis
-builder.Services.AddStackExchangeRedisCache(options =>
+builder.Services.AddStackExchangeRedisCache(o =>
 {
-    options.Configuration = builder.Configuration["Redis:ConnectionString"];
+    o.Configuration = builder.Configuration["Redis:ConnectionString"];
 });
 
 if (!builder.Environment.IsEnvironment("Test"))
