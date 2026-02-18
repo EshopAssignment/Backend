@@ -167,6 +167,18 @@ builder.Services.AddStackExchangeRedisCache(o =>
     o.Configuration = builder.Configuration["Redis:ConnectionString"];
 });
 
+//Email services with rate-limiting
+
+builder.Services.AddSingleton<EmailRateLimiter>();
+builder.Services.AddScoped<AcsEmailSender>();
+builder.Services.AddScoped<IEmailSender>(sp =>
+    new RateLimitedEmailSender(
+        sp.GetRequiredService<AcsEmailSender>(),
+        sp.GetRequiredService<EmailRateLimiter>(),
+        sp.GetRequiredService<ILogger<RateLimitedEmailSender>>()
+        )
+    );
+
 if (!builder.Environment.IsEnvironment("Test"))
 {
     builder.Services.AddHostedService<DatabaseInitializerHostedService>();
