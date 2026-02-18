@@ -13,7 +13,7 @@ public class AcsEmailSender : IEmailSender
     private readonly ILogger<AcsEmailSender> _logger;
 
 
-    public AcsEmailSender(IConfiguration config, Logger<AcsEmailSender> logger)
+    public AcsEmailSender(IConfiguration config, ILogger<AcsEmailSender> logger)
     {
         var cs = config["AcsEmail:ConnectionString"]
             ?? throw new InvalidOperationException("Missing ACS email connection string");

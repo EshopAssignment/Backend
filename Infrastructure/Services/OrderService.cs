@@ -1,5 +1,4 @@
 ﻿
-using System.Runtime.InteropServices;
 using Application.Assemblers;
 using Application.DTOs.Order;
 using Application.DTOs.Shipping;
@@ -12,12 +11,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Services;
 
-public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authContext, OrderAssembler assembler, IInventoryService inventoryService) : IOrderService
+public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authContext, OrderAssembler assembler, IInventoryService inventoryService, IEmailSender emailSender) : IOrderService
 {
     private readonly PallshoppenDbContext _db = dbContext;
     private readonly OrderAssembler _assembler = assembler;
     private readonly IInventoryService _inventory = inventoryService;
     private readonly AuthDbContext _authDb = authContext;
+    private readonly IEmailSender _emailSender = emailSender;
     //Order Tasks
     public async Task<OrderCreatedDto> CreateAsync(CreateOrderRequestDto dto, int? userId, CancellationToken ct)
     {
@@ -117,6 +117,17 @@ public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authCont
         order.Payment.MarkAuthorized(paymentIntentId, latestChargeId, amount, methodType, DateTime.UtcNow);
         order.MarkConfirmed();
         await _db.SaveChangesAsync(ct);
+
+        await _emailSender.SendAsync(
+        order.CustomerEmail!,
+            $"Orderbekräftelse {order.OrderNumber}",
+            $"""
+                    <h2>Tack för din beställning!</h2>
+                    <p>Ordernummer: {order.OrderNumber}</p>
+                    <p>Total: {order.GrandTotal} {order.Currency}</p>
+                    """,
+        ct);
+
         return true;
     }
     public async Task<bool> MarkPaymentFailedAsync(string orderNumber, CancellationToken ct)
