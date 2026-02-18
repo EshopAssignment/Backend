@@ -14,5 +14,6 @@ public class StockReservation
     public StockReservationStatus Status { get; set; } = StockReservationStatus.Active;
     public string? IdempotencyKey { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public string? PaymentIntentId { get; set; }
 
 }

@@ -142,7 +142,7 @@ public class InventoryService(PallshoppenDbContext dbContext) : IInventoryServic
                 return (false, $"CART_NOT_FOUND cartId={cartId}");
 
             if (all.Any(r => r.Status == StockReservationStatus.Confirmed &&
-                             r.IdempotencyKey == paymentKey))
+                             r.PaymentIntentId == paymentKey))
                 return (true, null);
 
             var active = all.Where(r => r.Status == StockReservationStatus.Active).ToList();
@@ -150,23 +150,15 @@ public class InventoryService(PallshoppenDbContext dbContext) : IInventoryServic
             if (active.Count == 0)
             {
                 var statusDump = string.Join(",",
-                    all.GroupBy(r => r.Status)
-                       .Select(g => $"{g.Key}:{g.Count()}"));
+                    all.GroupBy(r => r.Status).Select(g => $"{g.Key}:{g.Count()}"));
 
-                var keysDump = string.Join(",",
-                    all.Select(r => r.IdempotencyKey)
-                       .Where(k => !string.IsNullOrWhiteSpace(k))
+                var paymentDump = string.Join(",",
+                    all.Select(r => r.PaymentIntentId)
+                       .Where(x => !string.IsNullOrWhiteSpace(x))
                        .Distinct());
 
-                var anyConfirmed = all.Any(r => r.Status == StockReservationStatus.Confirmed);
-                if (anyConfirmed)
-                {
-                    return (false,
-                        $"NO_ACTIVE_RESERVATIONS_ALREADY_CONFIRMED cartId={cartId} statuses=[{statusDump}] keys=[{keysDump}] paymentKey={paymentKey}");
-                }
-
                 return (false,
-                    $"NO_ACTIVE_RESERVATIONS cartId={cartId} statuses=[{statusDump}] keys=[{keysDump}] paymentKey={paymentKey}");
+                    $"NO_ACTIVE_RESERVATIONS cartId={cartId} statuses=[{statusDump}] paymentIntents=[{paymentDump}] paymentKey={paymentKey}");
             }
 
             await using var tx = await dbContext.Database.BeginTransactionAsync(ct);
@@ -193,7 +185,7 @@ public class InventoryService(PallshoppenDbContext dbContext) : IInventoryServic
                 foreach (var r in active)
                 {
                     r.Status = StockReservationStatus.Confirmed;
-                    r.IdempotencyKey = paymentKey;
+                    r.PaymentIntentId = paymentKey;     
                 }
 
                 await dbContext.SaveChangesAsync(ct);
@@ -207,6 +199,7 @@ public class InventoryService(PallshoppenDbContext dbContext) : IInventoryServic
             }
         });
     }
+
     //chatGPT 5.2 generated.
     public async Task<int> ReleaseExpiredAsync(CancellationToken ct)
     {
