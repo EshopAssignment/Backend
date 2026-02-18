@@ -1,14 +1,14 @@
 ﻿{
   "ConnectionStrings": {
-    "DefaultConnection": "Data Source=(LocalDB)\\MSSQLLocalDB;AttachDbFilename=C:\\Users\\erika\\Desktop\\Consid\\DB\\Database.mdf;Integrated Security=True;Connect Timeout=30" //lapotp
-    //"DefaultConnection": "Data Source=(LocalDB)\\MSSQLLocalDB;AttachDbFilename=C:\\Users\\ville\\Desktop\\Consid\\Db\\Database.mdf;Integrated Security=True;Connect Timeout=30" //hemma
-    //"DefaultConnection": "Server=db;Database=EshopDb;User Id=sa;Password=lösenordhär!;TrustServerCertificate=True;" //docker
-
+    "DefaultConnection": "Server=localhost,1433;Database=EshopDevDb;User Id=sa;Password=abc!;TrustServerCertificate=True;Encrypt=False;" //laptop
+    //"DefaultConnection": "Data Source=(LocalDB)\\MSSQLLocalDB;AttachDbFilename=C:\\Users\\ville\\Desktop\\Consid\\Db\\Database.mdf;Integrated Security=True;Connect Timeout=30" //desktop
+    //"DefaultConnection": "Server=db;Database=EshopDb;User Id=sa;Password=abc!;TrustServerCertificate=True;" //docker
   },
+
   "Jwt": {
     "Issuer": "Pallshoppen",
     "Audience": "Pallshoppen.Client",
-    "Key": "KESHPATTELS-LÖSENORD-9349ef9f-0f51-4cf0-b27f-19fe5934620c"
+    "Key": "abc"
   },
   "Logging": {
     "LogLevel": {
@@ -18,13 +18,31 @@
     }
   },
   "Stripe": {
-    "PublishableKey": "m",
-    "SecretKey": "s",
-    "WebhookSecret": "w."
+    "PublishableKey": "abc",
+    "SecretKey": "abc",
+    "WebhookSecret": "abc"
   },
   "PostNord": {
     "BaseUrl": "https://atapi2.postnord.com/rest/businesslocation",
-    "ApiKey": "https://atdeveloper.postnord.com/admin/applications?tab=apps"
+    "ApiKey": "abc"
+  },
+  "Redis": {
+    "ConnectionString": "localhost:6379"
+  },
+  "Cache": {
+    "Enabled": true
+  },
+  "Email": {
+    "Provider": "Acs"
+  },
+  "AcsEmail": {
+    "ConnectionString": "abc",
+    "From": "f6898231-52a4-4a35-8604-caa08a220637.azurecomm.net"
+  },
+  "EmailRateLimit": {
+    "Enabled": true,
+    "PerMinute": 5,
+    "PerHour": 10
   },
   "AllowedHosts": "*"
 }

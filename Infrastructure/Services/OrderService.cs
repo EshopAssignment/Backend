@@ -124,15 +124,15 @@ public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authCont
         order.MarkConfirmed();
         await _db.SaveChangesAsync(ct);
 
-        //await _emailSender.SendAsync(
-        //order.CustomerEmail!,
-        //    $"Orderbekräftelse {order.OrderNumber}",
-        //    $"""
-        //            <h2>Tack för din beställning!</h2>
-        //            <p>Ordernummer: {order.OrderNumber}</p>
-        //            <p>Total: {order.GrandTotal} {order.Currency}</p>
-        //            """,
-        //ct);
+        await _emailSender.SendAsync(
+        order.CustomerEmail!,
+            $"Orderbekräftelse {order.OrderNumber}",
+            $"""
+                    <h2>Tack för din beställning!</h2>
+                    <p>Ordernummer: {order.OrderNumber}</p>
+                    <p>Total: {order.GrandTotal} {order.Currency}</p>
+                    """,
+        ct);
 
         return true;
     }
