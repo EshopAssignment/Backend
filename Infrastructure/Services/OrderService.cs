@@ -8,16 +8,18 @@ using Domain.Enums;
 using Domain.ValueObjects;
 using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Infrastructure.Services;
 
-public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authContext, OrderAssembler assembler, IInventoryService inventoryService, IEmailSender emailSender) : IOrderService
+public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authContext, OrderAssembler assembler, IInventoryService inventoryService, IEmailSender emailSender, ILogger<OrderService> logger) : IOrderService
 {
     private readonly PallshoppenDbContext _db = dbContext;
     private readonly OrderAssembler _assembler = assembler;
     private readonly IInventoryService _inventory = inventoryService;
     private readonly AuthDbContext _authDb = authContext;
     private readonly IEmailSender _emailSender = emailSender;
+    private readonly ILogger<OrderService> _logger = logger;
     //Order Tasks
     public async Task<OrderCreatedDto> CreateAsync(CreateOrderRequestDto dto, int? userId, CancellationToken ct)
     {
@@ -108,6 +110,10 @@ public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authCont
 
         if (!ok)
         {
+            _logger.LogWarning(
+                "ConfirmOrderFromCart failed. order={OrderNumber} cartId={CartId} pi={PaymentIntentId} error={Error}",
+                orderNumber, cartId, paymentIntentId, err);
+
             order.Payment.MarkFailed();
             order.MarkFailed();
             await _db.SaveChangesAsync(ct);
@@ -118,15 +124,15 @@ public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authCont
         order.MarkConfirmed();
         await _db.SaveChangesAsync(ct);
 
-        await _emailSender.SendAsync(
-        order.CustomerEmail!,
-            $"Orderbekräftelse {order.OrderNumber}",
-            $"""
-                    <h2>Tack för din beställning!</h2>
-                    <p>Ordernummer: {order.OrderNumber}</p>
-                    <p>Total: {order.GrandTotal} {order.Currency}</p>
-                    """,
-        ct);
+        //await _emailSender.SendAsync(
+        //order.CustomerEmail!,
+        //    $"Orderbekräftelse {order.OrderNumber}",
+        //    $"""
+        //            <h2>Tack för din beställning!</h2>
+        //            <p>Ordernummer: {order.OrderNumber}</p>
+        //            <p>Total: {order.GrandTotal} {order.Currency}</p>
+        //            """,
+        //ct);
 
         return true;
     }
