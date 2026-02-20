@@ -3,23 +3,27 @@ using Application.Assemblers;
 using Application.DTOs.Order;
 using Application.DTOs.Shipping;
 using Application.Interfaces;
+using Application.Interfaces.ACS;
 using Domain.Entities;
 using Domain.Enums;
 using Domain.ValueObjects;
+using Infrastructure.ACS;
 using Infrastructure.Persistence;
+using Infrastructure.Services.Acs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Infrastructure.Services;
 
-public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authContext, OrderAssembler assembler, IInventoryService inventoryService, IEmailSender emailSender, ILogger<OrderService> logger) : IOrderService
+public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authContext, OrderAssembler assembler, IInventoryService inventoryService, IEmailOutbox emailOutbox, ILogger<OrderService> logger, IEmailTemplateRenderer emailTemplateRenderer) : IOrderService
 {
     private readonly PallshoppenDbContext _db = dbContext;
     private readonly OrderAssembler _assembler = assembler;
     private readonly IInventoryService _inventory = inventoryService;
     private readonly AuthDbContext _authDb = authContext;
-    private readonly IEmailSender _emailSender = emailSender;
+    private readonly IEmailOutbox _emailOutbox = emailOutbox;
     private readonly ILogger<OrderService> _logger = logger;
+    private readonly IEmailTemplateRenderer _templateRenderer = emailTemplateRenderer;
     //Order Tasks
     public async Task<OrderCreatedDto> CreateAsync(CreateOrderRequestDto dto, int? userId, CancellationToken ct)
     {
@@ -104,6 +108,7 @@ public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authCont
         var order = await _db.Orders
             .Include(o => o.OrderItems)
             .FirstOrDefaultAsync(o => o.OrderNumber == orderNumber, ct);
+
         if (order is null) return false;
 
         var (ok, err) = await _inventory.ConfirmOrderFromCartAsync(cartId, paymentIntentId, ct);
@@ -124,15 +129,30 @@ public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authCont
         order.MarkConfirmed();
         await _db.SaveChangesAsync(ct);
 
-        await _emailSender.SendAsync(
-        order.CustomerEmail!,
-            $"Orderbekräftelse {order.OrderNumber}",
-            $"""
-                    <h2>Tack för din beställning!</h2>
-                    <p>Ordernummer: {order.OrderNumber}</p>
-                    <p>Total: {order.GrandTotal} {order.Currency}</p>
-                    """,
-        ct);
+        var email = order.CustomerEmail?.Trim();
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            _logger.LogWarning("Order {OrderNumber} saknar CustomerEmail, köar ingen orderbekräftelse.", order.OrderNumber);
+            return true;
+        }
+
+        var html = _templateRenderer.RenderOrderConfirmation(
+            order.OrderNumber,
+            order.ToCustomerName(),
+            order.Currency,
+            order.GrandTotal,
+            order.ToEmailItems());
+
+        var kind = "order_confirmation";
+        var correlationId = $"{order.OrderNumber}:{kind}";
+
+        await _emailOutbox.EnqueueAsync(
+            to: email,
+            subject: $"Orderbekräftelse {order.OrderNumber}",
+            htmlBody: html,
+            kind: kind,
+            correlationId: correlationId,
+            ct: ct);
 
         return true;
     }
@@ -272,7 +292,6 @@ public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authCont
         return true;
     }
 
-
     //Checkout Gating Tasks
     public async Task<bool> UpdateCustomerAsync(string orderNumber, UpdateOrderCustomerDto dto, int? userId, CancellationToken ct)
     {
@@ -298,7 +317,6 @@ public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authCont
         return true;
 
     }
-
     public async Task<bool> UpdateShippingAddressAsync(string orderNumber, UpdateOrderShippingAddressDto dto, int? userId, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(orderNumber))
@@ -329,7 +347,6 @@ public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authCont
         await _db.SaveChangesAsync(ct);
         return true;
     }
-
     private static void EnsureCanEdit(Order order, int? userId)
     {
         if (order.Payment.Status is PaymentStatus.Authorized

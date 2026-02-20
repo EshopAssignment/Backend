@@ -1,5 +1,6 @@
 ﻿using Application.Interfaces;
 using Domain.Entities;
+using Domain.Entities.Mail;
 using Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -12,6 +13,7 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<StockReservation> StockReservations => Set<StockReservation>();
+    public DbSet<EmailOutboxMessage> EmailOutBox => Set<EmailOutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -49,7 +51,6 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
             entity.HasIndex(p => new { p.IsActive, p.Slug })
                   .HasDatabaseName("IX_Products_IsActive_Slug");
         });
-
         modelBuilder.Entity<StockReservation>(entity =>
         {
             entity.Property(r => r.CartId).HasMaxLength(64).IsRequired();
@@ -78,11 +79,25 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
                   .HasForeignKey(r => r.ProductId)
                   .OnDelete(DeleteBehavior.Cascade);
         });
-
         modelBuilder.Entity<Order>(ConfigureOrder);
         modelBuilder.Entity<OrderItem>(ConfigureOrderItem);
-    }
+        modelBuilder.Entity<EmailOutboxMessage>(b =>
+        {
+            b.ToTable("EmailOutbox", "core");
+            b.HasKey(x => x.Id);
 
+            b.Property(x => x.To).HasMaxLength(500).IsRequired();
+            b.Property(x => x.Subject).HasMaxLength(500).IsRequired();
+            b.Property(x => x.Kind).HasMaxLength(100).IsRequired();
+
+            b.Property(x => x.CorrelationId).HasMaxLength(100).IsRequired();
+            b.Property(x => x.Status).HasConversion<int>();
+            b.Property(x => x.HtmlBody).IsRequired();
+
+            b.HasIndex(x => new { x.Status, x.NextAttempt });
+            b.HasIndex(x => x.CorrelationId);
+        });
+    }
     private static void ConfigureOrder(EntityTypeBuilder<Order> entity)
     {
         entity.HasKey(o => o.Id);
@@ -140,7 +155,6 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
               .HasForeignKey(i => i.OrderId)
               .OnDelete(DeleteBehavior.Cascade);
     }
-
     private static void ConfigureOrderItem(EntityTypeBuilder<OrderItem> entity)
     {
         entity.Property(i => i.ProductName).HasMaxLength(200).IsRequired();

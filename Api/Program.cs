@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using Application.Assemblers;
 using Application.Interfaces;
+using Application.Interfaces.ACS;
 using Application.Interfaces.Auth;
 using Domain.Entities.Identity;
 using Domain.Stripe;
@@ -10,6 +11,7 @@ using Infrastructure.Options;
 using Infrastructure.Persistence;
 using Infrastructure.Seed;
 using Infrastructure.Services;
+using Infrastructure.Services.Acs;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -168,9 +170,10 @@ builder.Services.AddStackExchangeRedisCache(o =>
 });
 
 //Email services with rate-limiting
-
+builder.Services.AddScoped<IEmailOutbox, EmailOutbox>();
 builder.Services.AddSingleton<EmailRateLimiter>();
 builder.Services.AddScoped<AcsEmailSender>();
+builder.Services.AddSingleton<IEmailTemplateRenderer, EmailTemplateRenderer>(); 
 builder.Services.AddScoped<IEmailSender>(sp =>
     new RateLimitedEmailSender(
         sp.GetRequiredService<AcsEmailSender>(),
@@ -184,6 +187,7 @@ if (!builder.Environment.IsEnvironment("Test"))
     builder.Services.AddHostedService<DatabaseInitializerHostedService>();
     builder.Services.AddHostedService<PendingCleanupService>();
     builder.Services.AddHostedService<StockReservationDeleteService>();
+    builder.Services.AddHostedService<EmailOutboxWorker>();
 }
 
 var app = builder.Build();
