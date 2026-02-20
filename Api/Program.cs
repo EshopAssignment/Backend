@@ -168,7 +168,7 @@ builder.Services.AddStackExchangeRedisCache(o =>
 });
 
 //Email services with rate-limiting
-
+builder.Services.AddScoped<IEmailOutbox, EmailOutbox>();
 builder.Services.AddSingleton<EmailRateLimiter>();
 builder.Services.AddScoped<AcsEmailSender>();
 builder.Services.AddScoped<IEmailSender>(sp =>
@@ -184,6 +184,7 @@ if (!builder.Environment.IsEnvironment("Test"))
     builder.Services.AddHostedService<DatabaseInitializerHostedService>();
     builder.Services.AddHostedService<PendingCleanupService>();
     builder.Services.AddHostedService<StockReservationDeleteService>();
+    builder.Services.AddHostedService<EmailOutboxWorker>();
 }
 
 var app = builder.Build();
