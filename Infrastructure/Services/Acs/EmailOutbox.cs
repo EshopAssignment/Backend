@@ -1,10 +1,9 @@
-﻿
-using Application.Interfaces;
+﻿using Application.Interfaces.ACS;
 using Domain.Entities.Mail;
 using Domain.Enums;
 using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
-namespace Infrastructure.Services;
+namespace Infrastructure.Services.Acs;
 
 public sealed class EmailOutbox(PallshoppenDbContext db) : IEmailOutbox
 {

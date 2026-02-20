@@ -1,10 +1,9 @@
-﻿
-using Application.Interfaces;
+﻿using Application.Interfaces.ACS;
 using Azure.Communication.Email;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
-namespace Infrastructure.Services;
+namespace Infrastructure.Services.Acs;
 
 public class AcsEmailSender : IEmailSender
 {

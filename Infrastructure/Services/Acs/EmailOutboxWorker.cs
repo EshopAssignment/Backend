@@ -1,4 +1,4 @@
-﻿using Application.Interfaces;
+﻿using Application.Interfaces.ACS;
 using Domain.Entities.Mail;
 using Domain.Enums;
 using Infrastructure.Persistence;
@@ -8,7 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace Infrastructure.Services;
+namespace Infrastructure.Services.Acs;
 
 public sealed class EmailOutboxWorker(IServiceProvider sp, ILogger<EmailOutboxWorker> logger) : BackgroundService
 {
@@ -53,7 +53,7 @@ public sealed class EmailOutboxWorker(IServiceProvider sp, ILogger<EmailOutboxWo
                 msg.SentAt = DateTime.UtcNow;
                 msg.LastError = null;
 
-                logger.LogInformation("Sent email to {To} with subject {Subject}", msg.Id, msg.To, msg.Kind);
+                logger.LogInformation("Sent email OutboxId={Id} To={To} Kind={Kind}", msg.Id, msg.To, msg.Kind);
             } 
             catch(Exception ex)
             {
@@ -93,8 +93,8 @@ public sealed class EmailOutboxWorker(IServiceProvider sp, ILogger<EmailOutboxWo
             SELECT TOP (@take) *
             FROM [core].[EmailOutbox] WITH (READPAST, UPDLOCK, ROWLOCK)
             WHERE [Status] = @pending
-              AND [NextAttemptAtUtc] <= @now
-            ORDER BY [NextAttemptAtUtc] ASC, [Id] ASC
+              AND [NextAttempt] <= @now
+            ORDER BY [NextAttempt] ASC, [Id] ASC
         )
         UPDATE cte
         SET [Status] = @processing

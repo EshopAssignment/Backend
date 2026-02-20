@@ -1,7 +1,7 @@
-﻿using Application.Interfaces;
+﻿using Application.Interfaces.ACS;
 using Microsoft.Extensions.Logging;
 
-namespace Infrastructure.Services;
+namespace Infrastructure.Services.Acs;
 public sealed class RateLimitedEmailSender(IEmailSender inner, EmailRateLimiter limiter, ILogger<RateLimitedEmailSender> logger) : IEmailSender
 {
     private readonly IEmailSender _inner = inner;
