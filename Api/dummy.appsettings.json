@@ -44,5 +44,11 @@
     "PerMinute": 5,
     "PerHour": 10
   },
+  "App": {
+    "PublicBaseUrl": "http://localhost:5173"
+  },
+  "Auth": {
+    "RequireConfirmedEmail": false
+  },
   "AllowedHosts": "*"
 }
