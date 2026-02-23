@@ -5,6 +5,8 @@ namespace Infrastructure.Services.Acs;
 
 public sealed class EmailTemplateRenderer : IEmailTemplateRenderer
 {
+
+
     public string RenderOrderConfirmation(
         string orderNumber,
         string customerName,
@@ -17,4 +19,19 @@ public sealed class EmailTemplateRenderer : IEmailTemplateRenderer
         string orderNumber,
         string trackingUrl)
         => OrderTemplates.ShippingNotification(orderNumber, trackingUrl);
+
+    public string RenderWelcomeEmail(string customerName)
+    {
+        throw new NotImplementedException();
+    }
+
+    public string RenderPassawordReset(string resetUrl)
+    {
+        throw new NotImplementedException();
+    }
+
+    public string RenderEmailVerification(string verifyUrl)
+    {
+        throw new NotImplementedException();
+    }
 }
