@@ -1,4 +1,5 @@
 ﻿using Application.DTOs.Auth;
+using Application.Interfaces;
 using Application.Interfaces.Auth;
 using Domain.Entities.Identity;
 using Infrastructure.Persistence;
@@ -9,70 +10,23 @@ using Microsoft.AspNetCore.Mvc;
 namespace Api.Controllers;
 
 [ApiController, Route("auth")]
-public class AuthController : ControllerBase
+public class AuthController(IAuthService auth): ControllerBase
 {
-    public readonly UserManager<User> _user;
-    public readonly SignInManager<User> _signInManager;
-    public readonly ITokenService _tokenService;
-    public readonly ITokenRefreshStore _refreshStore;
-    public readonly AuthDbContext _authContext;
-
-    public AuthController(UserManager<User> user, SignInManager<User> manager, ITokenService tokenService, ITokenRefreshStore refreshStore, AuthDbContext authContext)
-        => (_user, _signInManager, _tokenService, _refreshStore, _authContext) = (user, manager, tokenService, refreshStore, authContext);
-
-
     [HttpPost("register")]
-    public async Task<IActionResult> Register(RegisterDto dto)
+    public async Task<IActionResult> Register(RegisterDto dto, CancellationToken ct)
     {
-        var email = dto.Email.Trim().ToLowerInvariant();
-
-        var user = new User
-        {
-            UserName = email,
-            Email = email,
-            DisplayName = dto.DisplayName.Trim()
-        };
-
-        var res = await _user.CreateAsync(user, dto.Password);
-        if (!res.Succeeded)
-            return ValidationProblem(new ValidationProblemDetails(
-                res.Errors.GroupBy(e => e.Code)
-                    .ToDictionary(g => g.Key, g => g.Select(x => x.Description).ToArray())
-            ));
-
-        await _user.AddToRoleAsync(user, "User");
-
-        var exists = await _authContext.UserProfiles.FindAsync(user.Id);
-        if (exists is null)
-        {
-            _authContext.UserProfiles.Add(new UserProfile
-            {
-                UserId = user.Id,
-                FirstName = "",
-                LastName = "",
-                Phone = "",
-                DefaultShippingAddressId = null
-            });
-
-            await _authContext.SaveChangesAsync();
-        }
-
+        var (ok, errors) = await auth.RegisterAsync(dto, ct);
+        if (!ok) return ValidationProblem(new ValidationProblemDetails(errors!));
         return Ok();
     }
 
     [HttpPost("login")]
-    public async Task<IActionResult> Login(LoginDto dto)
+    public async Task<IActionResult> Login(LoginDto dto, CancellationToken ct)
     {
-        var email = dto.Email.Trim().ToLowerInvariant();
+        var (ok, uid, pair) = await auth.LoginAsync(dto, ct);
+        if(!ok || uid is null || pair is null) return Unauthorized();
 
-        var user = await _user.FindByEmailAsync(email);
-        if (user is null) return Unauthorized();
-
-        var res = await _signInManager.CheckPasswordSignInAsync(user, dto.Password, lockoutOnFailure: true);
-        if (!res.Succeeded) return Unauthorized();
-
-        var pair = await _tokenService.IssueAsync(user);
-        WriteCookies(user.Id, pair);
+        WriteCookies (uid.Value, pair);
         return Ok(new { expiresAt = pair.ExpiresAt });
     }
 
@@ -87,23 +41,48 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("refresh")]
-    public async Task<IActionResult> Refresh()
+    public async Task<IActionResult> Refresh(CancellationToken ct)
     {
         var uidCookie = Request.Cookies["uid"];
         var refresh = Request.Cookies["refresh_token"];
-        if (!int.TryParse(uidCookie, out var uid) || string.IsNullOrEmpty(refresh)) return Unauthorized();
+        if(!int.TryParse(uidCookie, out var uid) || string.IsNullOrEmpty(refresh))
+            return Unauthorized();
 
-        var ok = await _refreshStore.ValidateAsync(uid, refresh);
-        if (!ok) return Unauthorized();
+        var (ok, userId, pair) = await auth.RefreshAsync(uid, refresh, ct);
+        if(!ok || userId is null || pair is null) return Unauthorized();
 
-        await _refreshStore.RevokeAsync(uid, refresh);
-
-        var user = await _user.FindByIdAsync(uid.ToString());
-        if (user is null) return Unauthorized();
-
-        var pair = await _tokenService.IssueAsync(user);
-        WriteCookies(uid, pair);
+        WriteCookies(userId.Value, pair);
         return Ok(new { expiresAt = pair.ExpiresAt });
+    }
+
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto, CancellationToken ct)
+    {
+        await auth.ForgotPasswordAsync(dto.Email, ct);
+        return Ok();
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto, CancellationToken ct)
+    {
+        var (ok, err) = await auth.ResetPasswordAsync(dto.Email, dto.Token, dto.NewPassword, ct);
+        if (!ok) return BadRequest(new { message = err });
+        return Ok();
+    }
+
+    [HttpPost("resend-verification")]
+    public async Task<IActionResult> ResendVerification([FromBody] ResendVerificationDto dto, CancellationToken ct)
+    {
+        await auth.ResendEmailVerificationAsync(dto.Email, ct);
+        return Ok();
+    }
+
+    [HttpPost("confirm-email")]
+    public async Task<IActionResult> ConfirmEmail([FromBody] ConfirmEmailDto dto, CancellationToken ct)
+    {
+        var (ok, err) = await auth.ConfirmEmailAsync(dto.UserId, dto.Token, ct);
+        if (!ok) return BadRequest(new { message = err });
+        return Ok();
     }
 
     void WriteCookies(int userId, TokenPair p)
