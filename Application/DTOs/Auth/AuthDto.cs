@@ -22,5 +22,9 @@ public sealed record RegisterDto(
     string Password
 );
 
+public sealed record ForgotPasswordDto(string Email);
+public sealed record ResetPasswordDto(string Email, string Token, string NewPassword);
+public sealed record ResendVerificationDto(string Email);
+public sealed record ConfirmEmailDto(int UserId, string Token);
 
 
