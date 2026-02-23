@@ -5,6 +5,7 @@ using System.Text.Json;
 using Application.DTOs.Admin;
 using Application.DTOs.Product;
 using Application.Interfaces;
+using Application.Interfaces.ACS;
 using Domain.Enums;
 using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -18,8 +19,14 @@ public class AdminOrderService(
     PallshoppenDbContext dbContext,
     IDistributedCache cache,
     IConfiguration config,
-    ILogger<AdminOrderService> logger) : IAdminOrderService
+    ILogger<AdminOrderService> logger,
+    IEmailOutbox emailOutbox,
+    IEmailTemplateRenderer templateRenderer) : IAdminOrderService
 {
+
+    private readonly IEmailOutbox _emailOutbox = emailOutbox;
+    private readonly IEmailTemplateRenderer _templateRenderer = templateRenderer;
+
     private readonly bool _cacheEnabled = config?.GetValue("Cache:Enabled", true)
           ?? throw new ArgumentNullException(nameof(config), "IConfiguration is null. AdminOrderService is likely being constructed manually instead of via DI.");
     private static readonly JsonSerializerOptions CacheJson = new()
@@ -249,6 +256,9 @@ public class AdminOrderService(
         var o = await dbContext.Orders.FirstOrDefaultAsync(x => x.Id == id, ct);
         if (o is null) return false;
 
+        var wasShipped = o.OrderStatus == OrderStatus.Shipped;
+        var email = o.CustomerEmail?.Trim();
+
         switch (next)
         {
             case OrderStatus.Processing: o.MarkProcessing(); break;
@@ -273,6 +283,33 @@ public class AdminOrderService(
             await InvalidateAdminListAsync(cache, ct);
         }
 
+        if (next == OrderStatus.Shipped && !wasShipped)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                logger.LogWarning("Order {OrderId} saknar CustomerEmail, skippar shipped-mail.", o.Id);
+                return true;
+            }
+
+            var trackingNumber = o.TrackingNumber?.Trim();
+            var trackingUrl = string.IsNullOrWhiteSpace(trackingNumber)
+                ? "https://tracking.postnord.com/" 
+                : BuildPostNordTackingUrl(trackingNumber);
+
+            var html = _templateRenderer.RenderShippingNotification(o.OrderNumber, trackingUrl);
+
+            const string kind = "order_shipped";
+            var correlationId = $"{o.OrderNumber}:{kind}";
+
+            await _emailOutbox.EnqueueAsync(
+                to: email,
+                subject: $"Din order {o.OrderNumber} är skickad",
+                htmlBody: html,
+                kind: kind,
+                correlationId: correlationId,
+                ct: ct);
+        }
+
 
         return true;
     }
@@ -283,6 +320,9 @@ public class AdminOrderService(
 
         var o = await dbContext.Orders.FirstOrDefaultAsync(x => x.Id == id, ct);
         if (o is null) return false;
+
+        var wasShipped = o.OrderStatus == OrderStatus.Shipped;
+        var email = o.CustomerEmail?.Trim();
 
         o.SetTracking(trackingNumber);
 
@@ -297,6 +337,31 @@ public class AdminOrderService(
             await InvalidateAdminListAsync(cache, ct);
         }
 
+        if(markAsShipped && !wasShipped)
+        {
+            if(string.IsNullOrWhiteSpace(email))
+            {
+                logger.LogWarning("Order {orderId} missing, skipping email templet", o.Id);
+                return true;
+            }
+
+            var trackingUrl = BuildPostNordTackingUrl(trackingNumber);
+
+            var html = _templateRenderer.RenderShippingNotification(orderNumber: o.OrderNumber, trackingUrl: trackingUrl);
+
+            const string kind = "order_sihpped";
+            var correlationId = $"order:{o.Id}:{kind}";
+
+            await _emailOutbox.EnqueueAsync(
+                to: email,
+                subject: $"Din order {o.OrderNumber} är skickad!",
+                htmlBody: html,
+                correlationId: correlationId,
+                kind: kind,
+                ct: ct);
+
+        }
+
 
         return true;
     }
@@ -308,8 +373,11 @@ public class AdminOrderService(
     }
     private static Task BumpAsync(IDistributedCache cache, string key, CancellationToken ct)
         => cache.SetStringAsync(key, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString(), ct);
-
     private static Task InvalidateAdminListAsync(IDistributedCache cache, CancellationToken ct)
         => BumpAsync(cache, "orders:ver:adminlist", ct);
-
+    //helper
+    private static string BuildPostNordTackingUrl(string trackingNumber)
+    {
+        return $"https://tracking.postnord.com/?id={Uri.EscapeDataString(trackingNumber)}";
+    }
 }

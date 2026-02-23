@@ -14,4 +14,8 @@ public interface IEmailTemplateRenderer
         string orderNumber,
         string trackingUrl
         );
+
+    string RenderEmailVerification(string verifyUrl);
+    string RenderWelcomeEmail(string customerName);
+    string RenderPassawordReset(string resetUrl);
 }

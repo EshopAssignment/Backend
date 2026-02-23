@@ -70,7 +70,7 @@ public sealed class EmailOutboxWorker(IServiceProvider sp, ILogger<EmailOutboxWo
                 }
                 else
                 {
-                msg.Status = EmailOutboxStatus.Processing;
+                msg.Status = EmailOutboxStatus.Pending;
                 }
 
                 msg.LastError = Truncate(ex.ToString(), 4000);
