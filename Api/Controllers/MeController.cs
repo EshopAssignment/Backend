@@ -53,6 +53,7 @@ public class MeController(UserManager<User> users, AuthDbContext authContext, IO
     }
 
     [HttpPut("profile")]
+    [Authorize(Policy = "EmailConfirmed")]
     public async Task<IActionResult> UpdateProfile(UpdateProfileDto dto, CancellationToken ct)
     {
         var uid = GetUserId();
@@ -77,6 +78,7 @@ public class MeController(UserManager<User> users, AuthDbContext authContext, IO
     }
 
     [HttpPost("addresses")]
+    [Authorize(Policy = "EmailConfirmed")]
     public async Task<IActionResult> AddAddress(UpsertAddressDto dto, CancellationToken ct)
     {
         var uid = GetUserId();
@@ -110,6 +112,7 @@ public class MeController(UserManager<User> users, AuthDbContext authContext, IO
     }
 
     [HttpPatch("profile/default-address")]
+    [Authorize(Policy = "EmailConfirmed")]
     public async Task<IActionResult> SetDefaultAddress(SetDefaultAddressDto dto, CancellationToken ct)
     {
         var uid = GetUserId();
@@ -143,6 +146,7 @@ public class MeController(UserManager<User> users, AuthDbContext authContext, IO
 
 
     [HttpGet("orders")]
+    [Authorize(Policy = "EmailConfirmed")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(IReadOnlyList<MyOrderListItemDto>))]
     public async Task<ActionResult<IReadOnlyList<MyOrderListItemDto>>> GetMyOrders(
     [FromQuery] int skip = 0,
@@ -157,6 +161,7 @@ public class MeController(UserManager<User> users, AuthDbContext authContext, IO
     }
 
     [HttpGet("orders/{orderNumber}")]
+    [Authorize(Policy = "EmailConfirmed")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(OrderCreatedDto))]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetMyOrderByNumber(string orderNumber, CancellationToken ct = default)

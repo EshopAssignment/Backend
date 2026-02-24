@@ -1,5 +1,7 @@
 using System.Text;
 using System.Text.Json.Serialization;
+using Api.Authorization.Handlers;
+using Api.Authorization.Requirements;
 using Application.Assemblers;
 using Application.Interfaces;
 using Application.Interfaces.ACS;
@@ -13,6 +15,7 @@ using Infrastructure.Seed;
 using Infrastructure.Services;
 using Infrastructure.Services.Acs;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -157,7 +160,13 @@ builder.Services.AddAuthentication(o =>
     };
 });
 
-builder.Services.AddAuthorization();
+builder.Services.AddScoped<IAuthorizationHandler, EmailConfirmedHandler>();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("EmailConfirmed", policy =>
+    policy.RequireAuthenticatedUser()
+    .AddRequirements(new EmailConfirmedRequirement()));
+});
 
 //healthcheck
 builder.Services
