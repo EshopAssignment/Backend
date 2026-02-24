@@ -78,9 +78,6 @@ public sealed class AuthService(UserManager<User> userManager,
         var user = await userManager.FindByEmailAsync(email);
         if (user is null ) return (false, null, null);
 
-        if (_requireEmailConfirmation && !user.EmailConfirmed)
-            return (false, null, null);
-
         var res = await signInManager.CheckPasswordSignInAsync(user, dto.Password, lockoutOnFailure: true);
         if (!res.Succeeded) return (false, null, null);
 
