@@ -56,8 +56,8 @@ internal static class AuthTemplates
   </tr>
 </table>
 
-<p style="margin:0;color:{Muted};font-size:12px;line-height:1.6;">
-  Om knappen inte funkar: {Link(verifyUrl)}
+<p style="margin:10px 0 0 0;color:{Muted};font-size:12px;line-height:1.6;">
+  Om knappen inte funkar: begär en ny länk..
 </p>
 """;
 
@@ -91,7 +91,11 @@ internal static class AuthTemplates
 </table>
 
 <p style="margin:0;color:{Muted};font-size:12px;line-height:1.6;">
-  Om du inte begärde detta kan du ignorera mailet. Om knappen inte funkar: {Link(resetUrl)}
+  Om du inte begärde detta kan du ignorera mailet.
+</p>
+
+<p style="margin:10px 0 0 0;color:{Muted};font-size:12px;line-height:1.6;">
+  Om knappen inte funkar: gå till Inloggningssidan och begär en ny återställningslänk.
 </p>
 """;
 

@@ -54,7 +54,7 @@ public sealed class AuthService(UserManager<User> userManager,
         await userManager.AddToRoleAsync(user, "User");
 
         var exists = await authDb.UserProfiles.AsNoTracking().AnyAsync(x => x.UserId == user.Id, ct);
-        if (exists)
+        if (!exists)
         {
             authDb.UserProfiles.Add(new UserProfile
             {
@@ -110,15 +110,35 @@ public sealed class AuthService(UserManager<User> userManager,
     public async Task<(bool Ok, string? Error)> ConfirmEmailAsync(int userId, string tokenEncoded, CancellationToken ct)
     {
         var user = await userManager.FindByIdAsync(userId.ToString());
-        if(user is null) return (false, "User not found");
+        if (user is null) return (false, "User not found");
 
-        var token = DecodeToken(tokenEncoded);
+        if (user.EmailConfirmed)
+            return (true, null);
+
+        string token;
+        try
+        {
+            token = DecodeToken(tokenEncoded);
+        }
+        catch
+        {
+            return (false, "Bad token encoding");
+        }
+
         var res = await userManager.ConfirmEmailAsync(user, token);
 
-        if (!res.Succeeded) return (false, "Invalid Request");
+        if (res.Succeeded)
+            return (true, null);
 
-        return (true, null);
+        if (res.Errors.Any(e => e.Code == "ConcurrencyFailure"))
+        {
+            var fresh = await userManager.FindByIdAsync(userId.ToString());
+            if (fresh?.EmailConfirmed == true)
+                return (true, null);
+        }
 
+        var details = string.Join(" | ", res.Errors.Select(e => $"{e.Code}: {e.Description}"));
+        return (false, details);
     }
     public async Task ForgotPasswordAsync(string emailRaw, CancellationToken ct)
     {
