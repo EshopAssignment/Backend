@@ -13,7 +13,7 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<StockReservation> StockReservations => Set<StockReservation>();
-    public DbSet<EmailOutboxMessage> EmailOutBox => Set<EmailOutboxMessage>();
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

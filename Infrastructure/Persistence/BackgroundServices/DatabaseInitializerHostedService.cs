@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace Infrastructure.Persistence;
+namespace Infrastructure.Persistence.BackgroundServices;
 
 public sealed class DatabaseInitializerHostedService(
     IServiceProvider serviceProvider,
