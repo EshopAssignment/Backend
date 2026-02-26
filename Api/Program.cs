@@ -9,11 +9,13 @@ using Application.Interfaces.Auth;
 using Domain.Entities.Identity;
 using Domain.Stripe;
 using Infrastructure.Auth;
+using Infrastructure.Messaging.Outbox;
 using Infrastructure.Options;
 using Infrastructure.Persistence;
-using Infrastructure.Seed;
+using Infrastructure.Persistence.BackgroundServices;
 using Infrastructure.Services;
 using Infrastructure.Services.Acs;
+using MassTransit;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -179,6 +181,26 @@ builder.Services.AddStackExchangeRedisCache(o =>
     o.Configuration = builder.Configuration["Redis:ConnectionString"];
 });
 
+//MassTransit
+builder.Services.AddMassTransit(x =>
+{
+    x.AddConsumer<OrderConfirmedEmailConsumer>();
+
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        cfg.Host("localhost", "/", h =>
+        {
+            h.Username("guest");
+            h.Password("guest");
+        });
+
+        cfg.ReceiveEndpoint("order-confirmed-email", e =>
+        {
+            e.ConfigureConsumer<OrderConfirmedEmailConsumer>(context);
+        });
+    });
+});
+
 //Email services with rate-limiting
 builder.Services.AddScoped<IEmailOutbox, EmailOutbox>();
 builder.Services.AddSingleton<EmailRateLimiter>();
@@ -198,6 +220,7 @@ if (!builder.Environment.IsEnvironment("Test"))
     builder.Services.AddHostedService<PendingCleanupService>();
     builder.Services.AddHostedService<StockReservationDeleteService>();
     builder.Services.AddHostedService<EmailOutboxWorker>();
+    builder.Services.AddHostedService<OutboxPublisherService>();
 }
 
 var app = builder.Build();

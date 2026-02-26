@@ -4,10 +4,11 @@ using Application.DTOs.Order;
 using Application.DTOs.Shipping;
 using Application.Interfaces;
 using Application.Interfaces.ACS;
+using Contracts.Events;
 using Domain.Entities;
 using Domain.Enums;
 using Domain.ValueObjects;
-using Infrastructure.ACS;
+using Infrastructure.Messaging.Outbox;
 using Infrastructure.Persistence;
 using Infrastructure.Services.Acs;
 using Microsoft.EntityFrameworkCore;
@@ -38,19 +39,32 @@ public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authCont
         if (!ok) throw new InvalidOperationException(err ?? "RESERVATION_MISMATCH");
 
         var orderNumber = await GenerateUniqueOrderNumberAsync(ct);
-
         var order = await _assembler.FromDtoAsync(dto, orderNumber, ct);
-
         order.UserId = userId;
 
         if (userId is not null)
             await TryAutoFillFromUserAsync(order, userId.Value, ct);
+
+        await using var tx = await _db.Database.BeginTransactionAsync(ct);
 
         _db.Orders.Add(order);
         await _db.SaveChangesAsync(ct);
 
         if (order.Id <= 0)
             throw new InvalidOperationException($"Order saved but Id not generated. Id={order.Id}, OrderNumber={order.OrderNumber}");
+
+        var evt = new OrderCreatedEvent(
+            OrderId: order.Id,
+            OrderNUmber: order.OrderNumber,
+            UserId: order.UserId,
+            CartId: dto.CartId,
+            CreatedAtUtc: DateTime.UtcNow);
+
+        var correlationId = $"{order.OrderNumber}:order_created";
+        _db.OutboxMessages.Add(OutboxFactory.Create(evt, correlationId));
+
+        await _db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
 
         return _assembler.ToCreatedDto(order);
     }
@@ -125,34 +139,23 @@ public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authCont
             return false;
         }
 
+        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+
         order.Payment.MarkAuthorized(paymentIntentId, latestChargeId, amount, methodType, DateTime.UtcNow);
         order.MarkConfirmed();
         await _db.SaveChangesAsync(ct);
 
-        var email = order.CustomerEmail?.Trim();
-        if (string.IsNullOrWhiteSpace(email))
-        {
-            _logger.LogWarning("Order {OrderNumber} saknar CustomerEmail, köar ingen orderbekräftelse.", order.OrderNumber);
-            return true;
-        }
+        var evt = new OrderConfirmedEvent(
+            OrderId: order.Id,
+            OrderNumber: order.OrderNumber,
+            ConfirmedUtc: DateTime.UtcNow
+        );
 
-        var html = _templateRenderer.RenderOrderConfirmation(
-            order.OrderNumber,
-            order.ToCustomerName(),
-            order.Currency,
-            order.GrandTotal,
-            order.ToEmailItems());
+        var correlationId = $"{order.OrderNumber}:order_confirmed";
+        _db.OutboxMessages.Add(OutboxFactory.Create(evt, correlationId));
 
-        var kind = "order_confirmation";
-        var correlationId = $"{order.OrderNumber}:{kind}";
-
-        await _emailOutbox.EnqueueAsync(
-            to: email,
-            subject: $"Orderbekräftelse {order.OrderNumber}",
-            htmlBody: html,
-            kind: kind,
-            correlationId: correlationId,
-            ct: ct);
+        await _db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
 
         return true;
     }

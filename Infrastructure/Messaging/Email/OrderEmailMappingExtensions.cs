@@ -1,7 +1,7 @@
 ﻿
 using Domain.Entities;
 
-namespace Infrastructure.ACS;
+namespace Infrastructure.Messaging.Email;
 
 public static class OrderEmailMappingExtensions
 {

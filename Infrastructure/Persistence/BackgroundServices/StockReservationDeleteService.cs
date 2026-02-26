@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace Infrastructure.Persistence;
+namespace Infrastructure.Persistence.BackgroundServices;
 //chatGpt copy-paste.
 public sealed class StockReservationDeleteService(IServiceScopeFactory scopeFactory, ILogger<StockReservationDeleteService> logger) : BackgroundService
 {

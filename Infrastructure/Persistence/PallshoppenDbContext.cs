@@ -14,6 +14,7 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<StockReservation> StockReservations => Set<StockReservation>();
     public DbSet<EmailOutboxMessage> EmailOutBox => Set<EmailOutboxMessage>();
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -96,6 +97,17 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
 
             b.HasIndex(x => new { x.Status, x.NextAttempt });
             b.HasIndex(x => x.CorrelationId);
+        });
+        modelBuilder.Entity<OutboxMessage>(b =>
+        {
+            b.ToTable("OutboxMessages", "core");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.Type).HasMaxLength(500).IsRequired();
+            b.Property(x => x.CorrelationId).HasMaxLength(500).IsRequired();
+
+            b.HasIndex(x => new { x.PublichedAtUtc, x.CreatedAtUtc });
+            b.HasIndex(x => x.CorrelationId).IsUnique();
         });
     }
     private static void ConfigureOrder(EntityTypeBuilder<Order> entity)

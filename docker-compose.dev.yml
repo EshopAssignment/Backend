@@ -44,5 +44,12 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+
+  rabbitmq: 
+    image: rabbitmq:latest
+    container_name: pallshoppen-rabbitmq
+    ports:
+     - "5672:5672"
+     - "15672:15672"
 volumes:
   pallshoppen_sql_dev:

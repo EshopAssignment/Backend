@@ -1,6 +1,5 @@
 ﻿using Application.Interfaces.ACS;
-using Infrastructure.ACS;
-using Infrastructure.Email;
+using Infrastructure.Messaging.Email;
 
 namespace Infrastructure.Services.Acs;
 
