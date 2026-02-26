@@ -9,6 +9,7 @@ using Application.Interfaces.Auth;
 using Domain.Entities.Identity;
 using Domain.Stripe;
 using Infrastructure.Auth;
+using Infrastructure.Messaging.Outbox;
 using Infrastructure.Options;
 using Infrastructure.Persistence;
 using Infrastructure.Persistence.BackgroundServices;
@@ -183,14 +184,20 @@ builder.Services.AddStackExchangeRedisCache(o =>
 //MassTransit
 builder.Services.AddMassTransit(x =>
 {
+    x.AddConsumer<OrderConfirmedEmailConsumer>();
+
     x.UsingRabbitMq((context, cfg) =>
     {
         cfg.Host("localhost", "/", h =>
         {
             h.Username("guest");
-            h.Password("bytmig123");
+            h.Password("guest");
         });
-        cfg.ConfigureEndpoints(context);
+
+        cfg.ReceiveEndpoint("order-confirmed-email", e =>
+        {
+            e.ConfigureConsumer<OrderConfirmedEmailConsumer>(context);
+        });
     });
 });
 

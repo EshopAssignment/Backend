@@ -1,7 +1,7 @@
 ﻿using System.Text.Json;
 using Domain.Entities;
 
-namespace Infrastructure.Outbox;
+namespace Infrastructure.Messaging.Outbox;
 
 public static class OutboxFactory
 {

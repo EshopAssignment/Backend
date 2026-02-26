@@ -1,6 +1,4 @@
-﻿using Infrastructure.ACS;
-
-namespace Infrastructure.Email;
+﻿namespace Infrastructure.Messaging.Email;
 //chatCpt copy-paste.
 internal static class AuthTemplates
 {

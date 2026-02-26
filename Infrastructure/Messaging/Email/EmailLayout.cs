@@ -1,4 +1,4 @@
-﻿namespace Infrastructure.ACS;
+﻿namespace Infrastructure.Messaging.Email;
 
 internal static class EmailLayout
 {

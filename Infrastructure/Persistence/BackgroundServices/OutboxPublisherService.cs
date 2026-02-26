@@ -1,7 +1,7 @@
 ﻿
 using System.Reflection.Metadata;
 using Contracts.Events;
-using Infrastructure.Outbox;
+using Infrastructure.Messaging.Outbox;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
