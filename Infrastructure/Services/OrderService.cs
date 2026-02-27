@@ -45,28 +45,38 @@ public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authCont
         if (userId is not null)
             await TryAutoFillFromUserAsync(order, userId.Value, ct);
 
-        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+        var strategy = _db.Database.CreateExecutionStrategy();
 
-        _db.Orders.Add(order);
-        await _db.SaveChangesAsync(ct);
+        OrderCreatedDto? result = null;
 
-        if (order.Id <= 0)
-            throw new InvalidOperationException($"Order saved but Id not generated. Id={order.Id}, OrderNumber={order.OrderNumber}");
+        await strategy.ExecuteAsync(async () =>
+        {
+            await using var tx = await _db.Database.BeginTransactionAsync(ct);
 
-        var evt = new OrderCreatedEvent(
-            OrderId: order.Id,
-            OrderNUmber: order.OrderNumber,
-            UserId: order.UserId,
-            CartId: dto.CartId,
-            CreatedAtUtc: DateTime.UtcNow);
+            _db.Orders.Add(order);
+            await _db.SaveChangesAsync(ct);
 
-        var correlationId = $"{order.OrderNumber}:order_created";
-        _db.OutboxMessages.Add(OutboxFactory.Create(evt, correlationId));
+            if (order.Id <= 0)
+                throw new InvalidOperationException(
+                    $"Order saved but Id not generated. Id={order.Id}, OrderNumber={order.OrderNumber}");
 
-        await _db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
+            var evt = new OrderCreatedEvent(
+                OrderId: order.Id,
+                OrderNUmber: order.OrderNumber,   
+                UserId: order.UserId,
+                CartId: dto.CartId,
+                CreatedAtUtc: DateTime.UtcNow);
 
-        return _assembler.ToCreatedDto(order);
+            var correlationId = $"{order.OrderNumber}:order_created";
+            _db.OutboxMessages.Add(OutboxFactory.Create(evt, correlationId));
+
+            await _db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+
+            result = _assembler.ToCreatedDto(order);
+        });
+
+        return result!;
     }
     public async Task<OrderCreatedDto?> GetByIdAsync(int id, CancellationToken ct)
     {
@@ -120,8 +130,8 @@ public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authCont
     public async Task<bool> MarkPaymentAuthorizedAsync(string orderNumber, string paymentIntentId, string? latestChargeId, string? methodType, decimal amount,string cartId, CancellationToken ct)
     {
         var order = await _db.Orders
-            .Include(o => o.OrderItems)
-            .FirstOrDefaultAsync(o => o.OrderNumber == orderNumber, ct);
+           .Include(o => o.OrderItems)
+           .FirstOrDefaultAsync(o => o.OrderNumber == orderNumber, ct);
 
         if (order is null) return false;
 
@@ -139,23 +149,29 @@ public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authCont
             return false;
         }
 
-        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+        var strategy = _db.Database.CreateExecutionStrategy();
 
-        order.Payment.MarkAuthorized(paymentIntentId, latestChargeId, amount, methodType, DateTime.UtcNow);
-        order.MarkConfirmed();
-        await _db.SaveChangesAsync(ct);
+        await strategy.ExecuteAsync(async () =>
+        {
+            await using var tx = await _db.Database.BeginTransactionAsync(ct);
 
-        var evt = new OrderConfirmedEvent(
-            OrderId: order.Id,
-            OrderNumber: order.OrderNumber,
-            ConfirmedUtc: DateTime.UtcNow
-        );
+           
+            order.Payment.MarkAuthorized(paymentIntentId, latestChargeId, amount, methodType, DateTime.UtcNow);
+            order.MarkConfirmed();
+            await _db.SaveChangesAsync(ct);
 
-        var correlationId = $"{order.OrderNumber}:order_confirmed";
-        _db.OutboxMessages.Add(OutboxFactory.Create(evt, correlationId));
+            var evt = new OrderConfirmedEvent(
+                OrderId: order.Id,
+                OrderNumber: order.OrderNumber,
+                ConfirmedUtc: DateTime.UtcNow
+            );
 
-        await _db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
+            var correlationId = $"{order.OrderNumber}:order_confirmed";
+            _db.OutboxMessages.Add(OutboxFactory.Create(evt, correlationId));
+
+            await _db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        });
 
         return true;
     }
