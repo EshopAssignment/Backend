@@ -9,6 +9,7 @@ using Application.Interfaces.Auth;
 using Domain.Entities.Identity;
 using Domain.Stripe;
 using Infrastructure.Auth;
+using Infrastructure.Messaging.Consumers;
 using Infrastructure.Messaging.Outbox;
 using Infrastructure.Options;
 using Infrastructure.Persistence;
@@ -184,7 +185,9 @@ builder.Services.AddStackExchangeRedisCache(o =>
 //MassTransit
 builder.Services.AddMassTransit(x =>
 {
-    x.AddConsumer<OrderConfirmedEmailConsumer>();
+    x.AddConsumer<OrderCacheInvalidationConsumer>();
+    x.AddConsumer<OrderShippedEmailConsumer>();
+    x.AddConsumer<OrderConfirmedEmailConsumer>(); 
 
     x.UsingRabbitMq((context, cfg) =>
     {
@@ -194,7 +197,17 @@ builder.Services.AddMassTransit(x =>
             h.Password("guest");
         });
 
-        cfg.ReceiveEndpoint("order-confirmed-email", e =>
+        cfg.ReceiveEndpoint("order-cache", e =>
+        {
+            e.ConfigureConsumer<OrderCacheInvalidationConsumer>(context);
+        });
+
+        cfg.ReceiveEndpoint("order-email-shipped", e =>
+        {
+            e.ConfigureConsumer<OrderShippedEmailConsumer>(context);
+        });
+
+        cfg.ReceiveEndpoint("order-email-confirmed", e =>
         {
             e.ConfigureConsumer<OrderConfirmedEmailConsumer>(context);
         });
