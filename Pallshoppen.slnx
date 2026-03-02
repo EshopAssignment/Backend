@@ -2,7 +2,9 @@
   <Folder Name="/Solution Items/">
     <File Path=".env" />
   </Folder>
-  <Project Path="../Contracts/Contracts.csproj" Id="6ff9c7d8-3b24-456e-aad2-f1e206bc114c" />
+  <Project Path="../Contracts/Contracts.csproj" Id="6ff9c7d8-3b24-456e-aad2-f1e206bc114c">
+    <Build Solution="Debug|*" Project="false" />
+  </Project>
   <Project Path="Api/Api.csproj" Id="77780543-3695-4ddf-b48d-737ca0417beb" />
   <Project Path="Application/Application.csproj" Id="33ab3594-d975-47e2-8517-e281ecab27ad" />
   <Project Path="docker-compose.dcproj">
