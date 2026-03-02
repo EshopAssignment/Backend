@@ -63,6 +63,16 @@ public sealed class OutboxPublisherService(IServiceScopeFactory scopeFactory, IL
                     var evt = OutboxFactory.Deserialize<OrderConfirmedEvent>(msg);
                     await bus.Publish(evt, ct);
                 }
+                else if (msg.Type.EndsWith(nameof(OrderStatusChangedEvent)))
+                {
+                    var evt = OutboxFactory.Deserialize<OrderStatusChangedEvent>(msg);
+                    await bus.Publish(evt, ct);
+                }
+                else if (msg.Type.EndsWith(nameof(OrderTrackingSetEvent)))
+                {
+                    var evt = OutboxFactory.Deserialize<OrderTrackingSetEvent>(msg);
+                    await bus.Publish(evt, ct);
+                }
                 else
                 {
                     throw new InvalidOperationException($"Unknown outbox message type: {msg.Type}");

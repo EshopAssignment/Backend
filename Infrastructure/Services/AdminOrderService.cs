@@ -6,7 +6,9 @@ using Application.DTOs.Admin;
 using Application.DTOs.Product;
 using Application.Interfaces;
 using Application.Interfaces.ACS;
+using Contracts.Events;
 using Domain.Enums;
+using Infrastructure.Messaging.Outbox;
 using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
@@ -256,8 +258,7 @@ public class AdminOrderService(
         var o = await dbContext.Orders.FirstOrDefaultAsync(x => x.Id == id, ct);
         if (o is null) return false;
 
-        var wasShipped = o.OrderStatus == OrderStatus.Shipped;
-        var email = o.CustomerEmail?.Trim();
+        var prev = o.OrderStatus;
 
         switch (next)
         {
@@ -275,41 +276,26 @@ public class AdminOrderService(
             default: return false;
         }
 
-        await dbContext.SaveChangesAsync(ct);
+        var stragedy = dbContext.Database.CreateExecutionStrategy();
 
-        if (_cacheEnabled)
+        await stragedy.ExecuteAsync(async () =>
         {
-            await cache.RemoveAsync($"orders:admin:byid:{id}", ct);
-            await InvalidateAdminListAsync(cache, ct);
-        }
+            await using var tx = await dbContext.Database.BeginTransactionAsync(ct);
 
-        if (next == OrderStatus.Shipped && !wasShipped)
-        {
-            if (string.IsNullOrWhiteSpace(email))
-            {
-                logger.LogWarning("Order {OrderId} saknar CustomerEmail, skippar shipped-mail.", o.Id);
-                return true;
-            }
+            await dbContext.SaveChangesAsync(ct);
 
-            var trackingNumber = o.TrackingNumber?.Trim();
-            var trackingUrl = string.IsNullOrWhiteSpace(trackingNumber)
-                ? "https://tracking.postnord.com/" 
-                : BuildPostNordTackingUrl(trackingNumber);
+            var evt = new OrderStatusChangedEvent(
+                OrderId: o.Id,
+                OrderNumber: o.OrderNumber,
+                FromStatus: prev.ToString(),
+                ToStatus: prev.ToString(),
+                ChangedAtUtc: DateTime.UtcNow);
 
-            var html = _templateRenderer.RenderShippingNotification(o.OrderNumber, trackingUrl);
+            var correlationId = $"{o.OrderNumber}:status:{prev}->{next}";
 
-            const string kind = "order_shipped";
-            var correlationId = $"{o.OrderNumber}:{kind}";
-
-            await _emailOutbox.EnqueueAsync(
-                to: email,
-                subject: $"Din order {o.OrderNumber} är skickad",
-                htmlBody: html,
-                kind: kind,
-                correlationId: correlationId,
-                ct: ct);
-        }
-
+            await dbContext.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        });
 
         return true;
     }
@@ -321,47 +307,34 @@ public class AdminOrderService(
         var o = await dbContext.Orders.FirstOrDefaultAsync(x => x.Id == id, ct);
         if (o is null) return false;
 
-        var wasShipped = o.OrderStatus == OrderStatus.Shipped;
-        var email = o.CustomerEmail?.Trim();
+        var prevStatus = o.OrderStatus;
 
         o.SetTracking(trackingNumber);
 
         if (markAsShipped)
             o.MarkShipped();
 
-        await dbContext.SaveChangesAsync(ct);
+        var stragedy = dbContext.Database.CreateExecutionStrategy();
 
-        if (_cacheEnabled)
+        await stragedy.ExecuteAsync(async () =>
         {
-            await cache.RemoveAsync($"orders:admin:byid:{id}", ct);
-            await InvalidateAdminListAsync(cache, ct);
-        }
+            await using var tx = await dbContext.Database.BeginTransactionAsync(ct);
 
-        if(markAsShipped && !wasShipped)
-        {
-            if(string.IsNullOrWhiteSpace(email))
-            {
-                logger.LogWarning("Order {orderId} missing, skipping email templet", o.Id);
-                return true;
-            }
+            await dbContext.SaveChangesAsync(ct);
 
-            var trackingUrl = BuildPostNordTackingUrl(trackingNumber);
+            var evt = new OrderTrackingSetEvent(
+                OrderId: o.Id,
+                OrderNumber: o.OrderNumber,
+                TrackingNumber: trackingNumber.Trim(),
+                MarkedAsShipped: markAsShipped && prevStatus != OrderStatus.Shipped,
+                SetAtUtc: DateTime.UtcNow);
 
-            var html = _templateRenderer.RenderShippingNotification(orderNumber: o.OrderNumber, trackingUrl: trackingUrl);
+            var correlationId = $"{o.OrderNumber}:tracking:{trackingNumber.Trim()}";
+            dbContext.OutboxMessages.Add(OutboxFactory.Create(evt, correlationId));
 
-            const string kind = "order_sihpped";
-            var correlationId = $"order:{o.Id}:{kind}";
-
-            await _emailOutbox.EnqueueAsync(
-                to: email,
-                subject: $"Din order {o.OrderNumber} är skickad!",
-                htmlBody: html,
-                correlationId: correlationId,
-                kind: kind,
-                ct: ct);
-
-        }
-
+            await dbContext.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        });
 
         return true;
     }
