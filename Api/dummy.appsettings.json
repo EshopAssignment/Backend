@@ -50,5 +50,9 @@
   "Auth": {
     "RequireConfirmedEmail": false
   },
+  "BlobStorage": {
+    "ConnectionString": "Dasd",
+    "ContainerName": "product-images"
+  },
   "AllowedHosts": "*"
 }

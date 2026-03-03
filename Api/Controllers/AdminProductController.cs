@@ -48,43 +48,10 @@ public class AdminProductController(IAdminProductService productService, IWebHos
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, [FromBody] AdminUpdateProductRequestDto req, CancellationToken ct = default)
     {
-        Console.WriteLine($"CT: {Request.ContentType}");
-        Console.WriteLine($"HasForm: {Request.HasFormContentType}");
-
-        if (Request.HasFormContentType)
-        {
-            Console.WriteLine($"Form files: {Request.Form.Files.Count}");
-            foreach (var f in Request.Form.Files)
-                Console.WriteLine($"FormFile: name={f.Name} filename={f.FileName} len={f.Length}");
-        }
         var updated = await productService.UpdateAsync(id, req, ct);
         return Ok(updated);
     }
-    [HttpPut("{id:int}/image")]
-    [Consumes("multipart/form-data")]
-    public async Task<IActionResult> UploadImage(int id, [FromForm] IFormFile file, CancellationToken ct)
-    {
 
-
-        var prod = await productService.GetByIdAsync(id, ct);
-        if (prod is null)return NotFound();
-
-        if (file is null || file.Length == 0) return BadRequest("Must upload file");
-
-        var dir = Path.Combine(env.WebRootPath ?? "wwwroot", "images", "products");
-        Directory.CreateDirectory(dir);
-
-        var ext = Path.GetExtension(file.FileName);
-        var name = $"product_{id}_{DateTime.UtcNow.Ticks}{ext}";
-        var path = Path.Combine(dir, name);
-        await using (var fs = System.IO.File.Create(path))
-            await file.CopyToAsync(fs, ct);
-
-        var url = $"/images/products/{name}";
-        await productService.SetImageUrlAsync(id, url, ct);
-
-        return Ok(new { imgUrl = url });
-    }
     [HttpPatch("{id:int}/activate")]
     public async Task<IActionResult> ToggleActive(int id,[FromBody] ToggleActiveRequest? body,[FromQuery] bool? isActive,CancellationToken ct = default) 
     {

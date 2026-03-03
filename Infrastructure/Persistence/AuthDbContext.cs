@@ -9,7 +9,6 @@ public class AuthDbContext(DbContextOptions<AuthDbContext> options) : IdentityDb
 {
     public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
     public DbSet<UserAddress> UserAddresses => Set<UserAddress>();
-
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
