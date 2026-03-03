@@ -10,7 +10,6 @@ using Domain.Enums;
 using Domain.ValueObjects;
 using Infrastructure.Messaging.Outbox;
 using Infrastructure.Persistence;
-using Infrastructure.Services.Acs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -376,6 +375,4 @@ public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authCont
         if (order.UserId is not null && userId != order.UserId)
             throw new InvalidOperationException("Not allowed");
     }
-
-
 }

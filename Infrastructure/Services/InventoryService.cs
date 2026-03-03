@@ -123,7 +123,6 @@ public class InventoryService(PallshoppenDbContext dbContext) : IInventoryServic
         await dbContext.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
     }
-
     //reworked with GPT 5.2, added idempotency key handling and better error reporting.
     public async Task<(bool ok, string? error)> ConfirmOrderFromCartAsync(
         string cartId,
@@ -199,7 +198,6 @@ public class InventoryService(PallshoppenDbContext dbContext) : IInventoryServic
             }
         });
     }
-
     //chatGPT 5.2 generated.
     public async Task<int> ReleaseExpiredAsync(CancellationToken ct)
     {
@@ -253,7 +251,6 @@ public class InventoryService(PallshoppenDbContext dbContext) : IInventoryServic
             return updated;
         });
     }
-
     static bool IsUniqueViolation(DbUpdateException ex)
     {
         if (ex.InnerException is not SqlException sql) return false;
