@@ -33,7 +33,6 @@ public static class ProductSeeder
 
         await db.SaveChangesAsync(ct);
     }
-
     private static void UpsertRange(PallshoppenDbContext db, Dictionary<string, Product> existingBySku, IEnumerable<Product> incoming)
     {
         foreach (var p in incoming)
@@ -117,7 +116,6 @@ public static class ProductSeeder
 
         NormalizeImages(existing);
     }
-
     private static void NormalizeImages(Product p)
     {
         if (p.Images == null) p.Images = new List<ProductImage>();
@@ -210,7 +208,6 @@ public static class ProductSeeder
             ),
         };
     }
-
     private static IEnumerable<Product> Generate(int count, int seedOffset)
     {
         var rnd = new Random(1337 + seedOffset);
@@ -288,7 +285,6 @@ public static class ProductSeeder
             );
         }
     }
-
     private static Product Make(
         string sku,
         string name,
@@ -327,7 +323,6 @@ public static class ProductSeeder
             }
         };
     }
-
     private static string SkuFor(ProductType type, ProductCondition condition, int n)
     {
         var t = type switch
@@ -349,7 +344,6 @@ public static class ProductSeeder
 
         return $"PAL-{t}-{c}-{n:0000}";
     }
-
     private static string TypeLabel(ProductType t) => t switch
     {
         ProductType.EuroPallet => "EURO-pall",
@@ -359,14 +353,12 @@ public static class ProductSeeder
         ProductType.SpecialPallet => "Special-pall",
         _ => "Övrigt"
     };
-
     private static string ConditionLabel(ProductCondition c) => c switch
     {
         ProductCondition.New => "Ny",
         ProductCondition.Refurbished => "Upprustad",
         _ => "Begagnad"
     };
-
     private static string Slugify(string s)
     {
         if (string.IsNullOrWhiteSpace(s)) return "";

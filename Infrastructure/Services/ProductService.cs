@@ -236,7 +236,11 @@ public class ProductService(
                 p.Id,
                 p.Name,
                 p.PriceExVat,
-                p.ImgUrl,
+                p.Images
+                .OrderByDescending(i => i.IsPrimary)
+                .ThenBy(i => i.SortOrder)
+                .Select(i => i.Url)
+                .FirstOrDefault() ?? "",
                 p.Slug ?? "",
                 p.Sku ?? ""))
             .ToListAsync(ct);
