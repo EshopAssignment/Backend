@@ -28,7 +28,6 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
         {
             entity.Property(p => p.Name).HasMaxLength(200).IsRequired();
             entity.Property(p => p.Description).IsRequired();
-            entity.Property(p => p.ImgUrl).IsRequired();
 
             entity.Property(p => p.PriceExVat).HasPrecision(18, 2);
 
@@ -47,6 +46,11 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
             entity.Property(p => p.Sku).HasMaxLength(100);
             entity.Property(p => p.Slug).HasMaxLength(200);
 
+            entity.HasMany(p => p.Images)
+                  .WithOne(i => i.Product)
+                  .HasForeignKey(i => i.ProductId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
             entity.HasIndex(p => p.Slug).IsUnique().HasFilter("[Slug] IS NOT NULL");
             entity.HasIndex(p => p.Sku).IsUnique().HasFilter("[Sku] IS NOT NULL");
 
@@ -57,17 +61,27 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
         });
         modelBuilder.Entity<ProductImage>(entity =>
         {
-            entity.HasKey(x => x.Id);
-            entity.Property(x => x.Url).IsRequired().HasMaxLength(2048);
-            entity.HasOne(x => x.Product)
-            .WithMany(p => p.Images)
-            .HasForeignKey(x => x.ProductId)
-            .OnDelete(DeleteBehavior.Cascade);
+            entity.ToTable("ProductImages");
 
-            entity.HasIndex(x => new { x.Product, x.SortOrder });
-            entity.HasIndex(x => new { x.Product, x.IsPrimary });
+            entity.Property(i => i.Url)
+                  .HasMaxLength(2048)
+                  .IsRequired();
+
+            entity.Property(i => i.AltText)
+                  .HasMaxLength(200);
+
+            entity.Property(i => i.SortOrder).HasDefaultValue(0);
+            entity.Property(i => i.IsPrimary).HasDefaultValue(false);
+
+            entity.Property(i => i.CreatedAtUtc)
+                  .HasDefaultValueSql("SYSUTCDATETIME()");
+
+            entity.HasIndex(i => new { i.ProductId, i.SortOrder })
+                  .HasDatabaseName("IX_ProductImages_ProductId_SortOrder");
+
+            entity.HasIndex(i => new { i.ProductId, i.IsPrimary })
+                  .HasDatabaseName("IX_ProductImages_ProductId_IsPrimary");
         });
-
         modelBuilder.Entity<StockReservation>(entity =>
         {
             entity.Property(r => r.CartId).HasMaxLength(64).IsRequired();
