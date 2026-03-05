@@ -12,8 +12,12 @@ public class Product
 
     public string Name { get; set; } = null!;
     public string Description { get; set; } = null!;
-    public string ImgUrl { get; set; } = null!;
+    
+    public ICollection<ProductImage> Images { get; set; } = new List<ProductImage>();
 
+    [NotMapped]
+    public string? PrimaryImageUrl => 
+        Images.OrderByDescending(x => x.IsPrimary).ThenBy(x => x.SortOrder).Select(x => x.Url).FirstOrDefault();
 
     public decimal PriceExVat { get; set; }
     public VatRate VatRate { get; set; } = Enums.VatRate.Vat25;

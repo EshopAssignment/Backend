@@ -10,11 +10,14 @@ namespace Infrastructure.Persistence;
 public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options) : DbContext(options), IAppDbContext
 {
     public DbSet<Product> Products => Set<Product>();
+    public DbSet<ProductImage> ProductImages => Set<ProductImage>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<StockReservation> StockReservations => Set<StockReservation>();
     public DbSet<EmailOutboxMessage> EmailOutBox => Set<EmailOutboxMessage>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+
+   
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -52,6 +55,19 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
             entity.HasIndex(p => new { p.IsActive, p.Slug })
                   .HasDatabaseName("IX_Products_IsActive_Slug");
         });
+        modelBuilder.Entity<ProductImage>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Url).IsRequired().HasMaxLength(2048);
+            entity.HasOne(x => x.Product)
+            .WithMany(p => p.Images)
+            .HasForeignKey(x => x.ProductId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(x => new { x.Product, x.SortOrder });
+            entity.HasIndex(x => new { x.Product, x.IsPrimary });
+        });
+
         modelBuilder.Entity<StockReservation>(entity =>
         {
             entity.Property(r => r.CartId).HasMaxLength(64).IsRequired();
