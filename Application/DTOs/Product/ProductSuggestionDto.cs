@@ -5,7 +5,7 @@ public sealed record ProductSuggestionDto(
     string Name,
     decimal PriceExVat,
     string? PrimaryImgUrl,
-    IReadOnlyList<ProductImageDto> Images
+    IReadOnlyList<ProductImageDto> Images,
     string? Slug,
     string? Sku
     );
