@@ -75,9 +75,9 @@ public class AdminProductController(IAdminProductService productService) : Contr
 
             vatRates = new[]
             {
-                new { value = 6, label = "6%" },
-                new { value = 12, label = "12%" },
-                new { value = 25, label = "25%" },
+                new { value = 6, label = "6%", intValue = 6 },
+                new { value = 12, label = "12%", intValue = 12 },
+                new { value = 25, label = "25%", intValue = 25 },
             }
         });
     }
