@@ -53,10 +53,10 @@ public class AdminOrderController(IAdminOrderService adminOrderService) : Contro
 
     public async Task<IActionResult> SetTracking(int id, [FromBody] AdminSetTrackingRequest body, CancellationToken ct = default)
     {
-        var ok = await adminOrderService.SetTrackingAsync(id, body.TrackingNumber, body.MarkAsShipped,  ct);
         if (string.IsNullOrWhiteSpace(body.TrackingNumber))
             return BadRequest("TrackingNumber is required.");
 
+        var ok = await adminOrderService.SetTrackingAsync(id, body.TrackingNumber, body.MarkAsShipped, ct);
         return ok ? NoContent() : NotFound();
     }
 }
