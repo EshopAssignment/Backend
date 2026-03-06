@@ -41,6 +41,8 @@ public class AdminProductController(IAdminProductService productService) : Contr
         return dto is null ? NotFound() : Ok(dto);
     }
     [HttpPost]
+    [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(ProductDto))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Create([FromBody] AdminCreateProductRequestDto req, CancellationToken ct = default)
     {
 
@@ -48,14 +50,19 @@ public class AdminProductController(IAdminProductService productService) : Contr
         return CreatedAtRoute("GetProductById_Admin", new { id = dto.Id }, dto);
     }
     [HttpPut("{id:int}")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(ProductDto))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Update(int id, [FromBody] AdminUpdateProductRequestDto req, CancellationToken ct = default)
     {
         if (id != req.Id) return BadRequest("Id missmatch");
         var updated = await productService.UpdateAsync(id, req, ct);
         return Ok(updated);
     }
-
     [HttpPatch("{id:int}/activate")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> ToggleActive(int id,[FromBody] ToggleActiveRequest? body,[FromQuery] bool? isActive,CancellationToken ct = default) 
     {
         var value = body?.IsActive ?? isActive;
@@ -65,7 +72,6 @@ public class AdminProductController(IAdminProductService productService) : Contr
         var ok = await productService.SetActiveAsync(id, value.Value, ct);
         return ok ? NoContent() : NotFound();
     }
-
     [HttpGet("options")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(AdminProductOptionsDto))]
     public IActionResult GetOptions()
