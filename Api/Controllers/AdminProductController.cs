@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel;
 using System.Reflection;
 using Application.DTOs.Admin;
+using Application.DTOs.Options;
 using Application.DTOs.Product;
 using Application.Interfaces;
 using Domain.Enums;
@@ -66,36 +67,38 @@ public class AdminProductController(IAdminProductService productService) : Contr
     }
 
     [HttpGet("options")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(AdminProductOptionsDto))]
     public IActionResult GetOptions()
     {
-        return Ok(new
-        {
-            productTypes = GetEnumOptions<ProductType>(),
-            productConditions = GetEnumOptions<ProductCondition>(),
-
-            vatRates = new[]
+        var dto = new AdminProductOptionsDto(
+            GetEnumOptions<ProductType>(),
+            GetEnumOptions<ProductCondition>(),
+            new[]
             {
-                new { value = 6, label = "6%", intValue = 6 },
-                new { value = 12, label = "12%", intValue = 12 },
-                new { value = 25, label = "25%", intValue = 25 },
+            new EnumOptionDto("6", "6%", 6),
+            new EnumOptionDto("12", "12%", 12),
+            new EnumOptionDto("25", "25%", 25),
             }
-        });
+        );
+
+        return Ok(dto);
     }
 
-    private static IEnumerable<object> GetEnumOptions<T>() where T : struct, Enum
+    private static IEnumerable<EnumOptionDto> GetEnumOptions<T>() where T : struct, Enum
     {
-        foreach (var v in Enum.GetValues<T>().Cast<T>())
+        foreach (var v in Enum.GetValues<T>())
         {
-            var name = v.ToString(); ;
+            var name = v.ToString();
             var label = typeof(T).GetMember(name)
                 .First()
                 .GetCustomAttribute<DescriptionAttribute>()?.Description ?? name;
-            yield return new
-            {
-                value = name,
+
+            yield return new EnumOptionDto(
+                name,
                 label,
-                intValue = Convert.ToInt32(v)
-            };
+                Convert.ToInt32(v)
+            );
         }
     }
 }
+
