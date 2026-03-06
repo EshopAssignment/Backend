@@ -97,8 +97,7 @@ public class AdminProductService(PallshoppenDbContext dbContext, ProductAssemble
             VatRate = ParseVatRatePercent(req.VatRatePercent, nameof(req.VatRatePercent)),
             OnHand = req.OnHand,
             Reserved = 0,
-
-            ImgUrl = SafeTrim(req.ImgUrl, maxLength: 500), 
+            Images = BuildImages(req.Images),
             Sku = "Sku-" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant(),
             Slug = Slugify(name),
 
@@ -109,10 +108,11 @@ public class AdminProductService(PallshoppenDbContext dbContext, ProductAssemble
             entity.IsActive = false;
 
         dbContext.Products.Add(entity);
+
         await dbContext.SaveChangesAsync(ct);
-
-
         await InvalidatePublicListsAsync(cache, ct);
+        await dbContext.Entry(entity).Collection(p => p.Images).LoadAsync(ct);
+
         return _assembler.ToDto(entity);
 
     }
@@ -139,12 +139,10 @@ public class AdminProductService(PallshoppenDbContext dbContext, ProductAssemble
         entity.PriceExVat = Math.Round(req.PriceExVat, 2);
         entity.VatRate = ParseVatRatePercent(req.VatRatePercent, nameof(req.VatRatePercent));
         entity.OnHand = req.OnHand;
+        entity.Images.Clear();
+        foreach (var img in BuildImages(req.Images)) entity.Images.Add(img);
 
-        if (!string.IsNullOrWhiteSpace(req.ImgUrl))
-            entity.ImgUrl = req.ImgUrl.Trim();
-
-        entity.IsActive = HasRequiredDate(entity) ? req.IsActive : false;
-
+        entity.IsActive = HasRequiredDate(entity) && req.IsActive;
 
         await dbContext.SaveChangesAsync(ct);
 
@@ -154,8 +152,11 @@ public class AdminProductService(PallshoppenDbContext dbContext, ProductAssemble
     }
     public async Task<bool> SetActiveAsync(int id, bool IsActive, CancellationToken ct)
     {
-        var entity = await dbContext.Products.FirstOrDefaultAsync(p => p.Id == id, ct);
-        if( entity is null) return false;
+        var entity = await dbContext.Products
+            .Include(p => p.Images)
+            .FirstOrDefaultAsync(p => p.Id == id, ct);
+
+        if (entity is null) return false;
 
         if (IsActive && !HasRequiredDate(entity))
         {
@@ -169,29 +170,19 @@ public class AdminProductService(PallshoppenDbContext dbContext, ProductAssemble
         entity.IsActive = IsActive;
         await dbContext.SaveChangesAsync(ct);
 
-        await cache.RemoveAsync($"producs:byid:{id}", ct);
+        await cache.RemoveAsync($"products:byid:{id}", ct);
         await InvalidatePublicListsAsync(cache, ct);
         return true;
-    }
-    public async Task SetImageUrlAsync(int id, string imgUrl, CancellationToken ct)
-    {
-        var url = imgUrl?.Trim() ?? string.Empty;
-        var entity = await dbContext.Products.FirstOrDefaultAsync(p => p.Id == id, ct)
-            ?? throw new KeyNotFoundException($" produkt {id} finns inte");
-
-        entity.ImgUrl = url;
-        await dbContext.SaveChangesAsync(ct);
-
-        await cache.RemoveAsync($"producs:byid:{id}", ct);
-        await InvalidatePublicListsAsync(cache, ct);
     }
     public async Task<ProductDto?> GetByIdAsync(int id, CancellationToken ct = default)
     {
         var p = await dbContext.Products.AsNoTracking()
+            .Include(p => p.Images)
             .FirstOrDefaultAsync(p => p.Id == id, ct);
 
         return p is null ? null : _assembler.ToDto(p);
     }
+
     //helpers
     private static TEnum ParseEnum<TEnum>(string? value, string param) where TEnum : struct, Enum
     {
@@ -240,6 +231,10 @@ public class AdminProductService(PallshoppenDbContext dbContext, ProductAssemble
         var vat = (int)p.VatRate;
         if (vat is not (6 or 12 or 25)) return false;
 
+        if (p.Images is null || p.Images.Count == 0) return false;
+
+        if (p.Images.Count(i => i.IsPrimary) != 1) return false;
+
         return true;
     }
     private static Task BumpAsync(IDistributedCache cache, string key, CancellationToken ct)
@@ -251,4 +246,29 @@ public class AdminProductService(PallshoppenDbContext dbContext, ProductAssemble
             BumpAsync(cache, "products:ver:list", ct),
             BumpAsync(cache, "products:ver:suggest", ct)
             );
+    private static List <ProductImage> BuildImages(IEnumerable<AdminProductImageRequestDto>? reqImages)
+    {
+        var imgs = (reqImages ?? Enumerable.Empty<AdminProductImageRequestDto>())
+            .Where(x => !string.IsNullOrEmpty(x.Url))
+            .Select(x => new ProductImage
+            {
+                Url = x.Url.Trim(),
+                SortOrder = x.SortOrder,
+                IsPrimary = x.IsPrimary,
+                AltText = string.IsNullOrWhiteSpace(x.AltText) ? null : x.AltText.Trim()
+            })
+            .OrderBy(x => x.SortOrder)
+            .ToList();
+
+        for (var i = 0; i < imgs.Count; i++)
+            imgs[i].SortOrder = i + 1;
+
+        if (imgs.Count > 0)
+        {
+            var firstPrimary = imgs.FirstOrDefault(i => i.IsPrimary) ?? imgs[0];
+            foreach (var img in imgs) img.IsPrimary = ReferenceEquals(img, firstPrimary);
+            firstPrimary.IsPrimary = true;
+        }
+        return imgs;
+    }
 }

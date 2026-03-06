@@ -1,6 +1,7 @@
 ﻿using Domain.Entities;
 using Domain.Enums;
 using Infrastructure.Persistence;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Seed;
@@ -32,7 +33,6 @@ public static class ProductSeeder
 
         await db.SaveChangesAsync(ct);
     }
-
     private static void UpsertRange(PallshoppenDbContext db, Dictionary<string, Product> existingBySku, IEnumerable<Product> incoming)
     {
         foreach (var p in incoming)
@@ -44,7 +44,6 @@ public static class ProductSeeder
             {
                 existing.Name = p.Name;
                 existing.Description = p.Description;
-                existing.ImgUrl = p.ImgUrl;
                 existing.PriceExVat = p.PriceExVat;
                 existing.VatRate = p.VatRate;
                 existing.Condition = p.Condition;
@@ -54,15 +53,88 @@ public static class ProductSeeder
                 existing.LowStockThreshold = p.LowStockThreshold;
                 existing.IsActive = p.IsActive;
                 existing.Slug = p.Slug;
+
+                UpsertImages(existing, p);
             }
             else
             {
+                NormalizeImages(p);
                 db.Products.Add(p);              
                 existingBySku[p.Sku!] = p;
             }
         }
     }
+    private static void UpsertImages(Product existing, Product incoming)
+    {
+        var incomingImages = incoming.Images?.ToList() ?? new List<ProductImage>();
 
+        if (incomingImages.Count == 0)
+        {
+            NormalizeImages(existing);
+            return;
+        }
+
+        if (existing.Images == null || existing.Images.Count == 0)
+        {
+            existing.Images = incomingImages;
+            NormalizeImages(existing);
+            return;
+        }
+
+        var incomingPrimary = incomingImages
+            .OrderByDescending(i => i.IsPrimary)
+            .ThenBy(i => i.SortOrder)
+            .FirstOrDefault();
+
+        if (incomingPrimary is null)
+        {
+            NormalizeImages(existing);
+            return;
+        }
+
+        var existingPrimary = existing.Images
+            .OrderByDescending(i => i.IsPrimary)
+            .ThenBy(i => i.SortOrder)
+            .FirstOrDefault();
+
+        if (existingPrimary is null)
+        {
+            existing.Images.Add(new ProductImage
+            {
+                Url = incomingPrimary.Url,
+                SortOrder = 0,
+                IsPrimary = true,
+                AltText = incomingPrimary.AltText
+            });
+        }
+        else
+        {
+            existingPrimary.Url = incomingPrimary.Url;
+            existingPrimary.AltText = incomingPrimary.AltText;
+            existingPrimary.IsPrimary = true;
+        }
+
+        NormalizeImages(existing);
+    }
+    private static void NormalizeImages(Product p)
+    {
+        if (p.Images == null) p.Images = new List<ProductImage>();
+
+        var list = p.Images
+            .Where(i => !string.IsNullOrWhiteSpace(i.Url))
+            .ToList();
+
+        for (var i = 0; i < list.Count; i++)
+            list[i].SortOrder = i;
+
+        if (list.Count > 0)
+        {
+            var firstPrimary = list.FirstOrDefault(i => i.IsPrimary) ?? list[0];
+            foreach (var img in list) img.IsPrimary = ReferenceEquals(img, firstPrimary);
+            firstPrimary.IsPrimary = true;
+        }
+        p.Images = list;
+    }
     private static List<Product> GetCurated()
     {
 
@@ -136,7 +208,6 @@ public static class ProductSeeder
             ),
         };
     }
-
     private static IEnumerable<Product> Generate(int count, int seedOffset)
     {
         var rnd = new Random(1337 + seedOffset);
@@ -214,7 +285,6 @@ public static class ProductSeeder
             );
         }
     }
-
     private static Product Make(
         string sku,
         string name,
@@ -230,7 +300,6 @@ public static class ProductSeeder
         {
             Name = name,
             Description = desc,
-            ImgUrl = img,
             PriceExVat = price,
             VatRate = VatRate.Vat25,
             PalletType = type,
@@ -240,10 +309,20 @@ public static class ProductSeeder
             LowStockThreshold = 20,
             IsActive = true,
             Sku = sku,
-            Slug = Slugify($"{name}-{sku}")
+            Slug = Slugify($"{name}-{sku}"),
+
+            Images = new List<ProductImage>
+            {
+                new ProductImage
+                {
+                    Url = img,
+                    SortOrder = 0,
+                    IsPrimary = true,
+                    AltText = name
+                }
+            }
         };
     }
-
     private static string SkuFor(ProductType type, ProductCondition condition, int n)
     {
         var t = type switch
@@ -265,7 +344,6 @@ public static class ProductSeeder
 
         return $"PAL-{t}-{c}-{n:0000}";
     }
-
     private static string TypeLabel(ProductType t) => t switch
     {
         ProductType.EuroPallet => "EURO-pall",
@@ -275,14 +353,12 @@ public static class ProductSeeder
         ProductType.SpecialPallet => "Special-pall",
         _ => "Övrigt"
     };
-
     private static string ConditionLabel(ProductCondition c) => c switch
     {
         ProductCondition.New => "Ny",
         ProductCondition.Refurbished => "Upprustad",
         _ => "Begagnad"
     };
-
     private static string Slugify(string s)
     {
         if (string.IsNullOrWhiteSpace(s)) return "";

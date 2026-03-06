@@ -5,7 +5,8 @@ public sealed record ProductDto
     int Id,
     string Name,
     string Description,
-    string ImgUrl,
+    string? PrimaryImgUrl,
+    IReadOnlyList<ProductImageDto> Images,
 
     decimal PriceExVat,
     int VatRatePercent,

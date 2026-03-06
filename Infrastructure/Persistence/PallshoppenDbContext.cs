@@ -10,11 +10,14 @@ namespace Infrastructure.Persistence;
 public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options) : DbContext(options), IAppDbContext
 {
     public DbSet<Product> Products => Set<Product>();
+    public DbSet<ProductImage> ProductImages => Set<ProductImage>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<StockReservation> StockReservations => Set<StockReservation>();
     public DbSet<EmailOutboxMessage> EmailOutBox => Set<EmailOutboxMessage>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+
+   
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -25,7 +28,6 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
         {
             entity.Property(p => p.Name).HasMaxLength(200).IsRequired();
             entity.Property(p => p.Description).IsRequired();
-            entity.Property(p => p.ImgUrl).IsRequired();
 
             entity.Property(p => p.PriceExVat).HasPrecision(18, 2);
 
@@ -44,6 +46,11 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
             entity.Property(p => p.Sku).HasMaxLength(100);
             entity.Property(p => p.Slug).HasMaxLength(200);
 
+            entity.HasMany(p => p.Images)
+                  .WithOne(i => i.Product)
+                  .HasForeignKey(i => i.ProductId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
             entity.HasIndex(p => p.Slug).IsUnique().HasFilter("[Slug] IS NOT NULL");
             entity.HasIndex(p => p.Sku).IsUnique().HasFilter("[Sku] IS NOT NULL");
 
@@ -51,6 +58,29 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
                   .HasDatabaseName("IX_Products_IsActive_Sku");
             entity.HasIndex(p => new { p.IsActive, p.Slug })
                   .HasDatabaseName("IX_Products_IsActive_Slug");
+        });
+        modelBuilder.Entity<ProductImage>(entity =>
+        {
+            entity.ToTable("ProductImages");
+
+            entity.Property(i => i.Url)
+                  .HasMaxLength(2048)
+                  .IsRequired();
+
+            entity.Property(i => i.AltText)
+                  .HasMaxLength(200);
+
+            entity.Property(i => i.SortOrder).HasDefaultValue(0);
+            entity.Property(i => i.IsPrimary).HasDefaultValue(false);
+
+            entity.Property(i => i.CreatedAtUtc)
+                  .HasDefaultValueSql("SYSUTCDATETIME()");
+
+            entity.HasIndex(i => new { i.ProductId, i.SortOrder })
+                  .HasDatabaseName("IX_ProductImages_ProductId_SortOrder");
+
+            entity.HasIndex(i => new { i.ProductId, i.IsPrimary })
+                  .HasDatabaseName("IX_ProductImages_ProductId_IsPrimary");
         });
         modelBuilder.Entity<StockReservation>(entity =>
         {

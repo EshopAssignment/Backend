@@ -10,7 +10,7 @@ namespace Api.Controllers;
 
 [ApiController]
 [Route("api/admin/products")]
-public class AdminProductController(IAdminProductService productService, IWebHostEnvironment env) : ControllerBase
+public class AdminProductController(IAdminProductService productService) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResult<ProductDto>))]
@@ -42,12 +42,14 @@ public class AdminProductController(IAdminProductService productService, IWebHos
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] AdminCreateProductRequestDto req, CancellationToken ct = default)
     {
+
         var dto = await productService.CreateAsync(req, ct);
         return CreatedAtRoute("GetProductById_Admin", new { id = dto.Id }, dto);
     }
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, [FromBody] AdminUpdateProductRequestDto req, CancellationToken ct = default)
     {
+        if (id != req.Id) return BadRequest("Id missmatch");
         var updated = await productService.UpdateAsync(id, req, ct);
         return Ok(updated);
     }

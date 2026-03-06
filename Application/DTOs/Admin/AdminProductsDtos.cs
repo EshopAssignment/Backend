@@ -1,4 +1,6 @@
 ﻿
+using Application.DTOs.Product;
+
 namespace Application.DTOs.Admin;
 
 public record AdminCreateProductRequestDto(
@@ -9,7 +11,7 @@ public record AdminCreateProductRequestDto(
     decimal PriceExVat,
     int VatRatePercent,
     int OnHand,
-    string ImgUrl,
+    List<AdminProductImageRequestDto> Images,
     bool IsActive
 );
 
@@ -22,8 +24,14 @@ public record AdminUpdateProductRequestDto(
     decimal PriceExVat,
     int VatRatePercent,
     int OnHand,
-    string ImgUrl,
+    List<AdminProductImageRequestDto> Images,
     bool IsActive
 );
+
+public record AdminProductImageRequestDto(
+    string Url,
+    int SortOrder,
+    bool IsPrimary,
+    string? AltText);
 
 public record ToggleActiveRequest(bool IsActive);

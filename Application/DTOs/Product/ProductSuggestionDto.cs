@@ -4,7 +4,7 @@ public sealed record ProductSuggestionDto(
     int Id,
     string Name,
     decimal PriceExVat,
-    string ImgUrl,
+    string? ImgUrl,
     string? Slug,
     string? Sku
     );
