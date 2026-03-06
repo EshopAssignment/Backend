@@ -1,5 +1,4 @@
-﻿
-using Application.DTOs.Product;
+﻿using Application.DTOs.Options;
 
 namespace Application.DTOs.Admin;
 
@@ -34,4 +33,7 @@ public record AdminProductImageRequestDto(
     bool IsPrimary,
     string? AltText);
 
+
+public record AdminProductOptionsDto(
+    IEnumerable<EnumOptionDto> ProductTypes, IEnumerable<EnumOptionDto> ProductConditions, IEnumerable<EnumOptionDto> VatRates);
 public record ToggleActiveRequest(bool IsActive);

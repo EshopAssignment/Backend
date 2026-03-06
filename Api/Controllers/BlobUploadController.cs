@@ -12,14 +12,14 @@ public class BlobUploadController(BlobUploadService blobService) : ControllerBas
 
     [HttpPost("request")]
     [ProducesResponseType(typeof(BlobUploadRequestResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
     public IActionResult RequestUpload([FromBody] RequestUploadDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.FileName))
-            return BadRequest("Invalid file Name");
+            return BadRequest("Invalid file name");
 
-        if(!dto.ContentType.StartsWith("image/"))
+        if (!dto.ContentType.StartsWith("image/"))
             return BadRequest("Only image uploads are allowed");
-
 
         var (uploadUri, publicUrl) = _blobService.CreateUploadSas(dto.ContentType);
         return Ok(new BlobUploadRequestResponse(uploadUri.ToString(), publicUrl));

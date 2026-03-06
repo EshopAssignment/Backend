@@ -1,5 +1,4 @@
-﻿
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace Application.DTOs.Auth;
 
@@ -22,9 +21,39 @@ public sealed record RegisterDto(
     string Password
 );
 
-public sealed record ForgotPasswordDto(string Email);
-public sealed record ResetPasswordDto(string Email, string Token, string NewPassword);
-public sealed record ResendVerificationDto(string Email);
-public sealed record ConfirmEmailDto(int UserId, string Token);
+public sealed record ForgotPasswordDto(
+    [Required, EmailAddress, StringLength(256)]
+    string Email
+);
 
+public sealed record ResetPasswordDto(
+    [Required, EmailAddress, StringLength(256)]
+    string Email,
 
+    [Required]
+    string Token,
+
+    [Required, StringLength(100, MinimumLength = 8)]
+    string NewPassword
+);
+
+public sealed record ResendVerificationDto(
+    [Required, EmailAddress, StringLength(256)]
+    string Email
+);
+
+public sealed record ConfirmEmailDto(
+    [Required]
+    int UserId,
+
+    [Required]
+    string Token
+);
+
+/// <summary>
+/// Response returned after login/refresh.
+/// Cookies contain tokens, this only informs the client about expiry.
+/// </summary>
+public sealed record AuthSessionResponseDto(
+    DateTime ExpiresAt
+);

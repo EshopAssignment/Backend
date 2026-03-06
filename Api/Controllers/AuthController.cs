@@ -1,10 +1,6 @@
 ﻿using Application.DTOs.Auth;
 using Application.Interfaces;
-using Application.Interfaces.Auth;
-using Domain.Entities.Identity;
-using Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controllers;
@@ -13,6 +9,8 @@ namespace Api.Controllers;
 public class AuthController(IAuthService auth): ControllerBase
 {
     [HttpPost("register")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Register(RegisterDto dto, CancellationToken ct)
     {
         var (ok, errors) = await auth.RegisterAsync(dto, ct);
@@ -21,13 +19,15 @@ public class AuthController(IAuthService auth): ControllerBase
     }
 
     [HttpPost("login")]
-    public async Task<IActionResult> Login(LoginDto dto, CancellationToken ct)
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(AuthSessionResponseDto))]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> Login([FromBody] LoginDto dto, CancellationToken ct)
     {
         var (ok, uid, pair) = await auth.LoginAsync(dto, ct);
-        if(!ok || uid is null || pair is null) return Unauthorized();
+        if (!ok || uid is null || pair is null) return Unauthorized();
 
-        WriteCookies (uid.Value, pair);
-        return Ok(new { expiresAt = pair.ExpiresAt });
+        WriteCookies(uid.Value, pair);
+        return Ok(new AuthSessionResponseDto(pair.ExpiresAt));
     }
 
     [Authorize]
@@ -41,18 +41,21 @@ public class AuthController(IAuthService auth): ControllerBase
     }
 
     [HttpPost("refresh")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(AuthSessionResponseDto))]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Refresh(CancellationToken ct)
     {
         var uidCookie = Request.Cookies["uid"];
         var refresh = Request.Cookies["refresh_token"];
-        if(!int.TryParse(uidCookie, out var uid) || string.IsNullOrEmpty(refresh))
+
+        if (!int.TryParse(uidCookie, out var uid) || string.IsNullOrEmpty(refresh))
             return Unauthorized();
 
         var (ok, userId, pair) = await auth.RefreshAsync(uid, refresh, ct);
-        if(!ok || userId is null || pair is null) return Unauthorized();
+        if (!ok || userId is null || pair is null) return Unauthorized();
 
         WriteCookies(userId.Value, pair);
-        return Ok(new { expiresAt = pair.ExpiresAt });
+        return Ok(new AuthSessionResponseDto(pair.ExpiresAt));
     }
 
     [HttpPost("forgot-password")]

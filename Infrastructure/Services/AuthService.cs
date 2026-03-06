@@ -177,7 +177,16 @@ public sealed class AuthService(UserManager<User> userManager,
         var user = await userManager.FindByEmailAsync(email);
         if (user is null) return (false, "User not found");
 
-        var token = DecodeToken(tokenEncoded);
+        string token;
+        try
+        {
+            token = DecodeToken(tokenEncoded);
+        }
+        catch
+        {
+            return (false, "Bad token encoding");
+        }
+
         var res = await userManager.ResetPasswordAsync(user, token, newPassword);
 
         if (!res.Succeeded) return (false, "Invalid Request");
