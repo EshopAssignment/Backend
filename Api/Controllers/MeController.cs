@@ -17,6 +17,8 @@ namespace Api.Controllers;
 public class MeController(UserManager<User> users, AuthDbContext authContext, IOrderService orderService) : ControllerBase
 {
     [HttpGet]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(MeDto))]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<MeDto>> GetProfile(CancellationToken ct)
     {
         var uid = GetUserId();
@@ -54,6 +56,8 @@ public class MeController(UserManager<User> users, AuthDbContext authContext, IO
 
     [HttpPut("profile")]
     [Authorize(Policy = "EmailConfirmed")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> UpdateProfile(UpdateProfileDto dto, CancellationToken ct)
     {
         var uid = GetUserId();
@@ -79,6 +83,8 @@ public class MeController(UserManager<User> users, AuthDbContext authContext, IO
 
     [HttpPost("addresses")]
     [Authorize(Policy = "EmailConfirmed")]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> AddAddress(UpsertAddressDto dto, CancellationToken ct)
     {
         var uid = GetUserId();
@@ -113,6 +119,9 @@ public class MeController(UserManager<User> users, AuthDbContext authContext, IO
 
     [HttpPatch("profile/default-address")]
     [Authorize(Policy = "EmailConfirmed")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> SetDefaultAddress(SetDefaultAddressDto dto, CancellationToken ct)
     {
         var uid = GetUserId();
