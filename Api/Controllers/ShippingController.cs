@@ -9,7 +9,7 @@ namespace Api.Controllers;
 [ApiController]
 public class ShippingController(IOrderService orders, IPostNordClient postnord) : ControllerBase
 {
-    {
+    
     [HttpGet("service-points")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(IReadOnlyList<ServicePointDto>))]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
