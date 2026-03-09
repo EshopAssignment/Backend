@@ -344,13 +344,5 @@ public class AdminOrderService(
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(raw));
         return $"{prefix}:{Convert.ToHexString(bytes)}";
     }
-    private static Task BumpAsync(IDistributedCache cache, string key, CancellationToken ct)
-        => cache.SetStringAsync(key, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString(), ct);
-    private static Task InvalidateAdminListAsync(IDistributedCache cache, CancellationToken ct)
-        => BumpAsync(cache, "orders:ver:adminlist", ct);
-    //helper
-    private static string BuildPostNordTackingUrl(string trackingNumber)
-    {
-        return $"https://tracking.postnord.com/?id={Uri.EscapeDataString(trackingNumber)}";
-    }
+
 }
