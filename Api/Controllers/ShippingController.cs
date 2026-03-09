@@ -9,7 +9,10 @@ namespace Api.Controllers;
 [ApiController]
 public class ShippingController(IOrderService orders, IPostNordClient postnord) : ControllerBase
 {
+    {
     [HttpGet("service-points")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(IReadOnlyList<ServicePointDto>))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<IReadOnlyList<ServicePointDto>>> GetServicePoints(
         [FromQuery] string postalCode,
         [FromQuery] string? city,
@@ -21,6 +24,9 @@ public class ShippingController(IOrderService orders, IPostNordClient postnord) 
     }
 
     [HttpPut("orders/{orderNumber}/selection")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> SetSelection(string orderNumber, [FromBody] SetShippingSelectionDto body, CancellationToken ct)
     {
         try
