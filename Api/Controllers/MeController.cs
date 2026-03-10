@@ -171,7 +171,7 @@ public class MeController(UserManager<User> users, AuthDbContext authContext, IO
 
     [HttpGet("orders/{orderNumber}")]
     [Authorize(Policy = "EmailConfirmed")]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(OrderCreatedDto))]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(OrderDetailsDto))]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetMyOrderByNumber(string orderNumber, CancellationToken ct = default)
     {

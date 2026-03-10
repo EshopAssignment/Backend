@@ -77,15 +77,23 @@ public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authCont
 
         return result!;
     }
-    public async Task<OrderCreatedDto?> GetByIdAsync(int id, CancellationToken ct)
+    public async Task<OrderDetailsDto?> GetByIdAsync(int id, CancellationToken ct)
     {
-        var o = await _db.Orders.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
-        return o is null ? null : _assembler.ToCreatedDto(o);
+        var o = await _db.Orders
+            .AsNoTracking()
+            .Include(x => x.OrderItems)
+            .FirstOrDefaultAsync(x => x.Id == id, ct);
+
+        return o is null ? null : _assembler.ToDetailsDto(o);
     }
-    public async Task<OrderCreatedDto?> GetByNumberAsync(string orderNumber, CancellationToken ct)
+    public async Task<OrderDetailsDto?> GetByNumberAsync(string orderNumber, CancellationToken ct)
     {
-        var o = await _db.Orders.AsNoTracking().FirstOrDefaultAsync(x => x.OrderNumber == orderNumber, ct);
-        return o is null ? null : _assembler.ToCreatedDto(o);
+        var o = await _db.Orders
+            .AsNoTracking()
+            .Include(x => x.OrderItems)
+            .FirstOrDefaultAsync(x => x.OrderNumber == orderNumber, ct);
+
+        return o is null ? null : _assembler.ToDetailsDto(o);
     }
     public async Task<OrderDetailsDto?> GetMyOrderByNumberAsync(int userId, string orderNumber, CancellationToken ct)
     {

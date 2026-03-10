@@ -56,7 +56,7 @@ public class OrderController(IOrderService orderService) : ControllerBase
     }
 
     [HttpGet("{id:int}")]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(OrderCreatedDto))]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(OrderDetailsDto))]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(int id, CancellationToken cancellationToken = default)
     {
@@ -67,7 +67,7 @@ public class OrderController(IOrderService orderService) : ControllerBase
     }
 
     [HttpGet("by-number/{orderNumber}")]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(OrderCreatedDto))]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(OrderDetailsDto))]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetByNumber(string orderNumber, CancellationToken ct = default)
     {
