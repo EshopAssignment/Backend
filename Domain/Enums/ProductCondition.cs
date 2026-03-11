@@ -1,7 +1,10 @@
 ﻿
 using System.ComponentModel;
+using System.Text.Json.Serialization;
 
 namespace Domain.Enums;
+
+[JsonConverter(typeof(JsonStringEnumConverter<ProductCondition>))]
 
 public enum ProductCondition
 {
