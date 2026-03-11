@@ -1,4 +1,8 @@
-﻿namespace Domain.Enums;
+﻿using System.Text.Json.Serialization;
+
+namespace Domain.Enums;
+
+[JsonConverter(typeof(JsonStringEnumConverter<VatRate>))]
 
 public enum VatRate
 {

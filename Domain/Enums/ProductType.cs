@@ -1,8 +1,11 @@
 ﻿
 
 using System.ComponentModel;
+using System.Text.Json.Serialization;
 
 namespace Domain.Enums;
+
+[JsonConverter(typeof(JsonStringEnumConverter<ProductType>))]
 
 public enum ProductType
 {
