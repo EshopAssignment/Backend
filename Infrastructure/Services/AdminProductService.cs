@@ -129,8 +129,10 @@ public class AdminProductService(PallshoppenDbContext dbContext, ProductAssemble
         if (req.OnHand < 0)
             throw new ArgumentOutOfRangeException(nameof(req.OnHand), "Stock måste vara 1+");
 
-        var entity = await dbContext.Products.FirstOrDefaultAsync(p => p.Id == id, ct)
-            ?? throw new KeyNotFoundException($"Produkct {id} does not exist");
+        var entity = await dbContext.Products
+           .Include(p => p.Images)
+           .FirstOrDefaultAsync(p => p.Id == id, ct)
+           ?? throw new KeyNotFoundException($"Product {id} does not exist");
 
         entity.Name = name;
         entity.Description = desc;
