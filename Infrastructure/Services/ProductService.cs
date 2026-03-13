@@ -181,7 +181,9 @@ public class ProductService(
 
         logger.LogInformation("Redis MISS {CacheKey}", cacheKey);
 
-        var p = await dbContext.Products.AsNoTracking()
+        var p = await dbContext.Products
+            .AsNoTracking()
+            .Include(p => p.Images)
             .FirstOrDefaultAsync(p => p.IsActive && p.Id == id, cancellationToken);
 
         if (p is null) return null;
