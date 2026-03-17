@@ -39,6 +39,7 @@
 
   <ItemGroup>
     <Folder Include="Authorization\Policies\" />
+    <Folder Include="wwwroot\images\products\" />
   </ItemGroup>
 
 </Project>
