@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Http;
 namespace Application.DTOs.Order;
 
 
-public sealed record CreateCustomRequestForm
+public sealed record CreateCustomRequestFormDto
 {
     [Required]
     [MaxLength(100)]
@@ -25,3 +25,6 @@ public sealed record CreateCustomRequestForm
 
     public IFormFile? File { get; init; }
 }
+
+
+

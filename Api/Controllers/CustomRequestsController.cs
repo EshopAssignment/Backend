@@ -11,10 +11,11 @@ public class CustomRequestsController(ICustomRequestService customRequestService
     private readonly ICustomRequestService _customRequestService = customRequestService;
 
     [HttpPost]
+    [Consumes("multipart/form-data")]
     [RequestSizeLimit(10_000_000)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Create([FromForm] CreateCustomRequestForm form, CancellationToken ct)
+    public async Task<IActionResult> Create([FromForm] CreateCustomRequestFormDto form, CancellationToken ct)
     {
         var result = await _customRequestService.CreateAsync(form, ct);
 
