@@ -22,4 +22,10 @@ public sealed class EmailTemplateRenderer : IEmailTemplateRenderer
         => AuthTemplates.PasswordReset(resetUrl);
     public string RenderEmailVerification(string verifyUrl)
     => AuthTemplates.EmailVerification(verifyUrl);
+
+    public string RenderCustomRequestCustomer(string customerName)
+        => CustomRequestTemplates.CustomerConfirmation(customerName);
+
+    public string RenderCustomRequestInternal(string name, string email, string phone, string message, string? fileName)
+        => CustomRequestTemplates.InternalNotification(name, email, phone, message, fileName);  
 }
