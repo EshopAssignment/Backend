@@ -15,7 +15,7 @@ public sealed class CustomRequestService(
     private readonly IConfiguration _config = config;
     private readonly ILogger<CustomRequestService> _logger = logger;
 
-    public async Task<(bool Ok, string? Error)> CreateAsync(CreateCustomRequestForm form, CancellationToken ct)
+    public async Task<(bool Ok, string? Error)> CreateAsync(CreateCustomRequestFormDto form, CancellationToken ct)
     {
         try
         {

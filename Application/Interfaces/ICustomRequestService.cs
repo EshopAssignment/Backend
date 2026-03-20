@@ -4,5 +4,5 @@ namespace Application.Interfaces;
 
 public interface ICustomRequestService
 {
-    Task<(bool Ok, string? Error)> CreateAsync(CreateCustomRequestForm form, CancellationToken ct);
+    Task<(bool Ok, string? Error)> CreateAsync(CreateCustomRequestFormDto form, CancellationToken ct);
 }
