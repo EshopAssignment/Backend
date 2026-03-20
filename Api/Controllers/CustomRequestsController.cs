@@ -1,12 +1,11 @@
 ﻿using Application.DTOs.Order;
 using Application.Interfaces;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controllers;
 
-[Route("api/[controller]")]
 [ApiController]
+[Route("api/custom-requests")]
 public class CustomRequestsController(ICustomRequestService customRequestService) : ControllerBase
 {
     private readonly ICustomRequestService _customRequestService = customRequestService;
@@ -20,9 +19,9 @@ public class CustomRequestsController(ICustomRequestService customRequestService
         var result = await _customRequestService.CreateAsync(form, ct);
 
         if (!result.Ok)
-            return BadRequest(new {message = result.Error});
+            return BadRequest(new { message = result.Error });
 
-        return Ok(new { message = "Förfrågan mottagen" });
+        return Ok(new { message = "Förfrågan mottagen." });
     }
 }
 

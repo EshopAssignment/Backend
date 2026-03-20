@@ -220,6 +220,7 @@ builder.Services.AddScoped<IEmailOutbox, EmailOutbox>();
 builder.Services.AddSingleton<EmailRateLimiter>();
 builder.Services.AddScoped<AcsEmailSender>();
 builder.Services.AddSingleton<IEmailTemplateRenderer, EmailTemplateRenderer>(); 
+builder.Services.AddScoped<ICustomRequestService, CustomRequestService>();
 builder.Services.AddScoped<IEmailSender>(sp =>
     new RateLimitedEmailSender(
         sp.GetRequiredService<AcsEmailSender>(),
