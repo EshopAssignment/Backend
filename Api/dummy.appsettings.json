@@ -39,6 +39,9 @@
     "ConnectionString": "abc",
     "From": "f6898231-52a4-4a35-8604-caa08a220637.azurecomm.net"
   },
+  "CustomRequests": {
+    "RecipientEmail": "dinprivata@outlook.com"
+  },
   "EmailRateLimit": {
     "Enabled": true,
     "PerMinute": 5,
