@@ -107,11 +107,11 @@ public sealed class AdminDashboardService(PallshoppenDbContext dbContext) : IAdm
             .AsNoTracking()
             .Where(o => o.CreatedAt >= fromUtc && o.CreatedAt <= toUtc)
             .GroupBy(o => o.OrderStatus)
+            .OrderBy(g => g.Key)
             .Select(g => new AdminOrderStatusCountDto(
-                OrderStatus: g.Key,
-                Count: g.Count()
+                g.Key,
+                g.Count()
             ))
-            .OrderBy(x => x.OrderStatus)
             .ToListAsync(ct);
 
         var recentOrders = await baseOrders
