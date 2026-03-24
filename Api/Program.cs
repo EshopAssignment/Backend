@@ -113,7 +113,7 @@ builder.Services.AddScoped<IInventoryService, InventoryService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddSingleton(_ => new Stripe.StripeClient(secretKey));
 builder.Services.AddScoped<BlobUploadService>();
-
+builder.Services.AddScoped<IAdminDashboardService, AdminDashboardService>();
 //Token Service
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.AddScoped<ITokenRefreshStore, TokenRefreshStore>();
