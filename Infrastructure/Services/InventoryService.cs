@@ -168,11 +168,6 @@ public class InventoryService(PallshoppenDbContext dbContext) : IInventoryServic
             return updated;
         });
     }
-    static bool IsUniqueViolation(DbUpdateException ex)
-    {
-        if (ex.InnerException is not SqlException sql) return false;
-        return sql.Number is 2601 or 2627;
-    }
     public async Task<(bool ok, string? error)> SetReservationQtyAsync(
         int productId,
         int desiredQty,

@@ -1,4 +1,4 @@
-﻿
+﻿using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -21,30 +21,50 @@ public class ProductService(
     ILogger<ProductService> logger,
     IConfiguration config) : IProductService
 {
-    private static TEnum ParseEnum<TEnum>(string? value, string paramName) where TEnum : struct, Enum
-    {
-        if (string.IsNullOrWhiteSpace(value)) throw new ArgumentException("no value", paramName);
-        if (Enum.TryParse<TEnum>(value, true, out var parsed)) return parsed;
-        throw new ArgumentException($"Inavlid value '{value}' for {typeof(TEnum).Name}", paramName);
-    }
     private readonly ProductAssembler _assembler = assembler;
-    private readonly bool _cacheEnabled = config.GetValue("Cache:Enabled", true); // flag to enable/disable caching
+    private readonly bool _cacheEnabled = config.GetValue("Cache:Enabled", true);
 
     private static readonly JsonSerializerOptions CacheJson = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
+
+    private static readonly OrderStatus[] PopularOrderStatuses =
+    [
+        OrderStatus.Confirmed,
+        OrderStatus.Processing,
+        OrderStatus.Shipped,
+        OrderStatus.Completed,
+        OrderStatus.Refunded
+    ];
+
+    private static TEnum ParseEnum<TEnum>(string? value, string paramName) where TEnum : struct, Enum
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            throw new ArgumentException("No value provided.", paramName);
+
+        if (Enum.TryParse<TEnum>(value, ignoreCase: true, out var parsed))
+            return parsed;
+
+        throw new ArgumentException($"Invalid value '{value}' for {typeof(TEnum).Name}.", paramName);
+    }
+
     private static string MakeKey(string prefix, string raw)
     {
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(raw));
         return $"{prefix}:{Convert.ToHexString(bytes)}";
     }
 
-
     public async Task<PagedResult<ProductDto>> GetAllAsync(
-        int page, int pageSize, string? query, string? sort,
-        List<string>? type, List<string>? condition,
-        decimal? minPrice, decimal? maxPrice, bool? inStock,
+        int page,
+        int pageSize,
+        string? query,
+        string? sort,
+        List<string>? type,
+        List<string>? condition,
+        decimal? minPrice,
+        decimal? maxPrice,
+        bool? inStock,
         CancellationToken ct)
     {
         page = page < 1 ? 1 : page;
@@ -52,29 +72,30 @@ public class ProductService(
         pageSize = pageSize > 200 ? 200 : pageSize;
 
         var qTerm = query?.Trim();
-        var s = sort?.Trim();
+        var s = sort?.Trim().ToLowerInvariant();
 
-        var typeNorm = type?.Where(x => !string.IsNullOrWhiteSpace(x))
-                            .Select(x => x.Trim())
-                            .OrderBy(x => x)
-                            .ToArray() ?? [];
+        var typeNorm = type?
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .OrderBy(x => x)
+            .ToArray() ?? [];
 
-        var condNorm = condition?.Where(x => !string.IsNullOrWhiteSpace(x))
-                                 .Select(x => x.Trim())
-                                 .OrderBy(x => x)
-                                 .ToArray() ?? [];
+        var condNorm = condition?
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .OrderBy(x => x)
+            .ToArray() ?? [];
 
         var verList = _cacheEnabled
             ? (await cache.GetStringAsync("products:ver:list", ct) ?? "0")
             : "0";
 
-
-
         var rawKey =
-           $"ver={verList}&page={page}&pageSize={pageSize}&query={qTerm}&sort={s}&" +
-           $"type={string.Join(",", typeNorm)}&condition={string.Join(",", condNorm)}&" +
-           $"min={minPrice?.ToString() ?? ""}&max={maxPrice?.ToString() ?? ""}&inStock={inStock?.ToString() ?? ""}";
-
+            $"ver={verList}&page={page}&pageSize={pageSize}&query={qTerm}&sort={s}&" +
+            $"type={string.Join(",", typeNorm)}&condition={string.Join(",", condNorm)}&" +
+            $"min={minPrice?.ToString(CultureInfo.InvariantCulture) ?? ""}&" +
+            $"max={maxPrice?.ToString(CultureInfo.InvariantCulture) ?? ""}&" +
+            $"inStock={inStock?.ToString() ?? ""}";
 
         var cacheKey = MakeKey("products:list", rawKey);
 
@@ -90,7 +111,9 @@ public class ProductService(
             logger.LogInformation("Redis MISS {CacheKey}", cacheKey);
         }
 
-        var q = dbContext.Products.AsNoTracking().Where(p => p.IsActive);
+        IQueryable<Domain.Entities.Product> q = dbContext.Products
+            .AsNoTracking()
+            .Where(p => p.IsActive);
 
         if (!string.IsNullOrWhiteSpace(qTerm))
         {
@@ -103,34 +126,34 @@ public class ProductService(
 
         if (typeNorm.Length > 0)
         {
-            var parsed = typeNorm.Select(t => ParseEnum<ProductType>(t, nameof(type)))
-                                 .Distinct()
-                                 .ToArray();
+            var parsed = typeNorm
+                .Select(t => ParseEnum<ProductType>(t, nameof(type)))
+                .Distinct()
+                .ToArray();
+
             q = q.Where(p => parsed.Contains(p.PalletType));
         }
 
         if (condNorm.Length > 0)
         {
-            var parsed = condNorm.Select(c => ParseEnum<ProductCondition>(c, nameof(condition)))
-                                 .Distinct()
-                                 .ToArray();
+            var parsed = condNorm
+                .Select(c => ParseEnum<ProductCondition>(c, nameof(condition)))
+                .Distinct()
+                .ToArray();
+
             q = q.Where(p => parsed.Contains(p.Condition));
         }
 
-        if (minPrice.HasValue) q = q.Where(p => p.PriceExVat >= minPrice.Value);
-        if (maxPrice.HasValue) q = q.Where(p => p.PriceExVat <= maxPrice.Value);
+        if (minPrice.HasValue)
+            q = q.Where(p => p.PriceExVat >= minPrice.Value);
+
+        if (maxPrice.HasValue)
+            q = q.Where(p => p.PriceExVat <= maxPrice.Value);
 
         if (inStock == true)
             q = q.Where(p => (p.OnHand - p.Reserved) > 0);
 
-        q = s switch
-        {
-            "price_asc" => q.OrderBy(p => p.PriceExVat),
-            "price_desc" => q.OrderByDescending(p => p.PriceExVat),
-            "name_asc" => q.OrderBy(p => EF.Functions.Collate(p.Name, "Latin1_General_100_BIN2")),
-            "name_desc" => q.OrderByDescending(p => EF.Functions.Collate(p.Name, "Latin1_General_100_BIN2")),
-            _ => q.OrderBy(p => p.Id),
-        };
+        q = ApplySorting(q, s);
 
         var total = await q.CountAsync(ct);
 
@@ -163,16 +186,15 @@ public class ProductService(
 
         return result;
     }
+
     public async Task<ProductDto?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
         var cacheKey = $"products:byid:{id}";
 
-
         if (_cacheEnabled)
         {
-
             var cached = await cache.GetStringAsync(cacheKey, cancellationToken);
-            if(cached is not null)
+            if (cached is not null)
             {
                 logger.LogInformation("Redis HIT {CacheKey}", cacheKey);
                 return JsonSerializer.Deserialize<ProductDto>(cached, CacheJson);
@@ -190,17 +212,21 @@ public class ProductService(
 
         var dto = _assembler.ToDto(p);
 
-        await cache.SetStringAsync(
-            cacheKey,
-            JsonSerializer.Serialize(dto, CacheJson),
-            new DistributedCacheEntryOptions
-            {
-                AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(120)
-            },
-            cancellationToken);
+        if (_cacheEnabled)
+        {
+            await cache.SetStringAsync(
+                cacheKey,
+                JsonSerializer.Serialize(dto, CacheJson),
+                new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(120)
+                },
+                cancellationToken);
+        }
 
         return dto;
     }
+
     public async Task<IEnumerable<ProductSuggestionDto>> SuggestionAsync(string q, int take, CancellationToken ct)
     {
         var term = q.Trim();
@@ -223,7 +249,6 @@ public class ProductService(
             }
         }
 
-
         logger.LogInformation("Redis MISS {CacheKey}", cacheKey);
 
         var result = await dbContext.Products
@@ -239,25 +264,74 @@ public class ProductService(
                 p.Name,
                 p.PriceExVat,
                 p.Images
-                .OrderByDescending(i => i.IsPrimary)
-                .ThenBy(i => i.SortOrder)
-                .Select(i => i.Url)
-                .FirstOrDefault() ?? "",
+                    .OrderByDescending(i => i.IsPrimary)
+                    .ThenBy(i => i.SortOrder)
+                    .Select(i => i.Url)
+                    .FirstOrDefault() ?? "",
                 p.Slug ?? "",
                 p.Sku ?? ""))
             .ToListAsync(ct);
 
-        await cache.SetStringAsync(
-            cacheKey,
-            JsonSerializer.Serialize(result, CacheJson),
-            new DistributedCacheEntryOptions
-            {
-                AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(30)
-            },
-            ct);
+        if (_cacheEnabled)
+        {
+            await cache.SetStringAsync(
+                cacheKey,
+                JsonSerializer.Serialize(result, CacheJson),
+                new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(30)
+                },
+                ct);
+        }
 
         return result;
     }
 
-}
+    private IQueryable<Domain.Entities.Product> ApplySorting(
+        IQueryable<Domain.Entities.Product> query,
+        string? sort)
+    {
+        return sort switch
+        {
+            "price_asc" => query.OrderBy(p => p.PriceExVat),
 
+            "price_desc" => query.OrderByDescending(p => p.PriceExVat),
+
+            "name_asc" => query.OrderBy(p => EF.Functions.Collate(p.Name, "Latin1_General_100_BIN2")),
+
+            "name_desc" => query.OrderByDescending(p => EF.Functions.Collate(p.Name, "Latin1_General_100_BIN2")),
+
+            "popular" => ApplyPopularSorting(query),
+
+            _ => query.OrderBy(p => p.Id),
+        };
+    }
+
+    private IQueryable<Domain.Entities.Product> ApplyPopularSorting(
+        IQueryable<Domain.Entities.Product> products)
+    {
+        var salesByProduct = dbContext.OrderItems
+            .AsNoTracking()
+            .Where(i => PopularOrderStatuses.Contains(i.Order.OrderStatus))
+            .GroupBy(i => i.ProductId)
+            .Select(g => new
+            {
+                ProductId = g.Key,
+                UnitsSold = g.Sum(x => x.Quantity)
+            });
+
+        return products
+            .GroupJoin(
+                salesByProduct,
+                product => product.Id,
+                sales => sales.ProductId,
+                (product, sales) => new
+                {
+                    Product = product,
+                    UnitsSold = sales.Select(x => (int?)x.UnitsSold).FirstOrDefault() ?? 0
+                })
+            .OrderByDescending(x => x.UnitsSold)
+            .ThenBy(x => EF.Functions.Collate(x.Product.Name, "Latin1_General_100_BIN2"))
+            .Select(x => x.Product);
+    }
+}
