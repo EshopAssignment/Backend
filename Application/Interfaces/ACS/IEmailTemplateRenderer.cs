@@ -26,4 +26,13 @@ public interface IEmailTemplateRenderer
         string phone,
         string message,
         string? fileName);
+
+    string RenderCustomQuoteCustomer(
+        string customerName,
+        string quoteTitle,
+        string currency,
+        decimal totalIncVat,
+        DateTime? expiresAtUtc,
+        string? CustomerMessage,
+        IEnumerable<(string Description, int Qty, decimal UnitPrice, decimal LineTotal)> items);
 }

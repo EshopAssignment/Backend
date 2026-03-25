@@ -16,7 +16,10 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
     public DbSet<StockReservation> StockReservations => Set<StockReservation>();
     public DbSet<EmailOutboxMessage> EmailOutBox => Set<EmailOutboxMessage>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
-
+    
+    public DbSet<CustomRequest> CustomRequest => Set<CustomRequest>();
+    public DbSet<CustomQuote> CustomQuote => Set<CustomQuote>();
+    public DbSet<CustomQuoteItem> CustomQuoteItem => Set<CustomQuoteItem>();
    
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -139,6 +142,9 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
             b.HasIndex(x => new { x.PublichedAtUtc, x.CreatedAtUtc });
             b.HasIndex(x => x.CorrelationId).IsUnique();
         });
+        modelBuilder.Entity<CustomRequest>(ConfigureCustomRequest);
+        modelBuilder.Entity<CustomQuote>(ConfigureCustomQuote);
+        modelBuilder.Entity<CustomQuoteItem>(ConfigureCustomQuoteItem);
     }
     private static void ConfigureOrder(EntityTypeBuilder<Order> entity)
     {
@@ -227,5 +233,79 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
               .WithMany()
               .HasForeignKey(i => i.ProductId)
               .OnDelete(DeleteBehavior.Restrict);
+    }
+    private static void ConfigureCustomRequest(EntityTypeBuilder<CustomRequest> entity)
+    {
+        entity.HasKey(x => x.Id);
+
+        entity.Property(x => x.Name).HasMaxLength(200).IsRequired();
+        entity.Property(x => x.Email).HasMaxLength(200).IsRequired();
+        entity.Property(x => x.Phone).HasMaxLength(100);
+        entity.Property(x => x.Message).IsRequired();
+
+        entity.Property(x => x.AttatchemntName).HasMaxLength(260);
+        entity.Property(x => x.AttatchemtBlobPath).HasMaxLength(500);
+
+        entity.Property(x => x.InternalNote).HasMaxLength(2000);
+        entity.Property(x => x.Status).HasConversion<int>();
+
+        entity.HasIndex(x => x.CreatedAtUtc);
+        entity.HasIndex(x => x.Status);
+        entity.HasIndex(x => x.Email);
+    }
+    private static void ConfigureCustomQuote(EntityTypeBuilder<CustomQuote> entity)
+    {
+        entity.HasKey(x => x.Id);
+
+        entity.Property(x => x.Title).HasMaxLength(200).IsRequired();
+        entity.Property(x => x.Currency).HasMaxLength(3).IsRequired();
+        entity.Property(x => x.CustomerMessage).HasMaxLength(4000);
+        entity.Property(x => x.InternalNote).HasMaxLength(2000);
+
+        entity.Property(x => x.Status).HasConversion<int>();
+
+        entity.Property(x => x.SubtotalExVat).HasPrecision(18, 2);
+        entity.Property(x => x.VatTotal).HasPrecision(18, 2);
+        entity.Property(x => x.TotalIncVat).HasPrecision(18, 2);
+
+        entity.HasOne(x => x.CustomRequest)
+            .WithMany(x => x.Quotes)
+            .HasForeignKey(x => x.CustomRequestId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        entity.HasIndex(x => x.CustomRequestId);
+        entity.HasIndex(x => x.Status);
+        entity.HasIndex(x => x.CreatedAtUtc);
+    }
+    private static void ConfigureCustomQuoteItem(EntityTypeBuilder<CustomQuoteItem> entity)
+    {
+        entity.HasKey(x => x.Id);
+
+        entity.Property(x => x.Description).HasMaxLength(500).IsRequired();
+        entity.Property(x => x.VatRatePercent).IsRequired();
+
+        entity.Property(x => x.UnitPriceExVat).HasPrecision(18, 2);
+        entity.Property(x => x.UnitVatAmount).HasPrecision(18, 2);
+        entity.Property(x => x.UnitPriceIncVat).HasPrecision(18, 2);
+
+        entity.Property(x => x.LineTotalExVat).HasPrecision(18, 2);
+        entity.Property(x => x.LineTotalVat).HasPrecision(18, 2);
+        entity.Property(x => x.LineTotalIncVat).HasPrecision(18, 2);
+
+        entity.HasOne(x => x.CustomQuote)
+            .WithMany(x => x.Items)
+            .HasForeignKey(x => x.CustomQuoteId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        entity.ToTable(t => t.HasCheckConstraint(
+            "CK_CustomQuoteItem_NonNegativeAmounts",
+            "[UnitPriceExVat] >= 0 AND [UnitVatAmount] >= 0 AND [UnitPriceIncVat] >= 0 AND " +
+            "[LineTotalExVat] >= 0 AND [LineTotalVat] >= 0 AND [LineTotalIncVat] >= 0 AND [Quantity] > 0"
+        ));
+
+        entity.ToTable(t => t.HasCheckConstraint(
+            "CK_CustomQuoteItem_VatRatePercent_Allowed",
+            "[VatRatePercent] IN (6, 12, 25)"
+        ));
     }
 }
