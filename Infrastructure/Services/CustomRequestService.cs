@@ -13,7 +13,8 @@ public sealed class CustomRequestService(
     IEmailOutbox emailOutbox,
     IEmailTemplateRenderer emailTemplateRenderer,
     IConfiguration config,
-    ILogger<CustomRequestService> logger, PallshoppenDbContext dbContext) : ICustomRequestService
+    ILogger<CustomRequestService> logger,
+    PallshoppenDbContext dbContext) : ICustomRequestService
 {
     private readonly IEmailOutbox _emailOutbox = emailOutbox;
     private readonly IEmailTemplateRenderer _emailTemplateRenderer = emailTemplateRenderer;
