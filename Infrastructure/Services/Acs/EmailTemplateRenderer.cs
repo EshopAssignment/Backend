@@ -27,5 +27,15 @@ public sealed class EmailTemplateRenderer : IEmailTemplateRenderer
         => CustomRequestTemplates.CustomerConfirmation(customerName);
 
     public string RenderCustomRequestInternal(string name, string email, string phone, string message, string? fileName)
-        => CustomRequestTemplates.InternalNotification(name, email, phone, message, fileName);  
+        => CustomRequestTemplates.InternalNotification(name, email, phone, message, fileName);
+
+    public string RenderCustomQuoteCustomer(string customerName, string quoteTitle, string currency, decimal totalIncVat, DateTime? expiresAtUtc, string? CustomerMessage, IEnumerable<(string Description, int Qty, decimal UnitPrice, decimal LineTotal)> items)
+        => CustomRequestTemplates.CustomerQuote(
+            customerName,
+            quoteTitle,
+            currency,
+            totalIncVat,
+            expiresAtUtc,
+            CustomerMessage,
+            items);
 }
