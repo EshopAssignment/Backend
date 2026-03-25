@@ -5,13 +5,13 @@ namespace Domain.Entities;
 
 public class CustomRequest
 {
-    public int id {  get; set; }
+    public int Id {  get; set; }
     public DateTime CreatedAtUtc { get; set; }
     public DateTime UpdatedAtUtc { get; set; }
     public string Name { get; set; } = null!;
     public string Email { get; set; } = null!;
     public string? Phone { get; set; }
-    public string Messsage { get; set; } = null!;
+    public string Message { get; set; } = null!;
     
     public CustomRequestStatus Status { get; private set; } = CustomRequestStatus.New;
 
@@ -19,7 +19,7 @@ public class CustomRequest
     public string? AttatchemtBlobPath { get; set; }
 
     public string? InternalNote { get; set; }
-    public ICollection<CustodmQuote> Quotes { get; set; } = [];
+    public ICollection<CustomQuote> Quotes { get; set; } = [];
 
     public void MarkReviewed()
     {
