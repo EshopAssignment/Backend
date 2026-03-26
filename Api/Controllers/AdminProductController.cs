@@ -5,12 +5,15 @@ using Application.DTOs.Options;
 using Application.DTOs.Product;
 using Application.Interfaces;
 using Domain.Enums;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controllers;
 
 [ApiController]
 [Route("api/admin/products")]
+[Authorize(Roles ="Admin")]
+
 public class AdminProductController(IAdminProductService productService) : ControllerBase
 {
     [HttpGet]

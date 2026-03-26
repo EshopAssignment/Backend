@@ -1,12 +1,15 @@
 ﻿using Application.DTOs.Admin;
 using Application.DTOs.Product;
 using Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controllers;
 
 [ApiController]
 [Route("api/admin/orders")]
+[Authorize(Roles = "Admin")]
+
 public class AdminOrderController(IAdminOrderService adminOrderService) : ControllerBase
 {
     [HttpGet]

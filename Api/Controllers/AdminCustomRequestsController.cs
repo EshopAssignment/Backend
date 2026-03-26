@@ -1,12 +1,15 @@
 ﻿using Application.DTOs.Admin;
 using Application.DTOs.Product;
 using Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controllers;
 
 [Route("api/admin/custom-request")]
 [ApiController]
+[Authorize(Roles = "Admin")]
+
 public class AdminCustomRequestsController(IAdminCustomRequestService service) : ControllerBase
 {
     [HttpGet]

@@ -1,4 +1,5 @@
 ﻿using Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -6,6 +7,8 @@ namespace Api.Controllers;
 
 [ApiController]
 [Route("api/admin/custom-quotes")]
+[Authorize(Roles = "Admin")]
+
 public class AdminCustomQuotesController(IAdminCustomRequestService service) : ControllerBase
 {
     [HttpPost("{id:int}/send")]
