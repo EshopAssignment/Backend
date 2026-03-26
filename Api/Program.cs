@@ -111,6 +111,7 @@ builder.Services.AddScoped<IAdminOrderService, AdminOrderService>();
 builder.Services.AddScoped<IAdminProductService, AdminProductService>();
 builder.Services.AddScoped<IInventoryService, InventoryService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IAdminCustomRequestService, AdminCustomRequestService>();
 builder.Services.AddSingleton(_ => new Stripe.StripeClient(secretKey));
 builder.Services.AddScoped<BlobUploadService>();
 builder.Services.AddScoped<IAdminDashboardService, AdminDashboardService>();
