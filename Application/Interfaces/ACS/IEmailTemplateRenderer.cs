@@ -33,6 +33,6 @@ public interface IEmailTemplateRenderer
         string currency,
         decimal totalIncVat,
         DateTime? expiresAtUtc,
-        string? CustomerMessage,
+        string? customerMessage,
         IEnumerable<(string Description, int Qty, decimal UnitPrice, decimal LineTotal)> items);
 }

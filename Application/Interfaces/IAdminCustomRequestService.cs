@@ -12,7 +12,7 @@ public interface IAdminCustomRequestService
         string? query,
         string? status,
         CancellationToken ct);
-    Task<AdminCustomRequestDetailsDto> GetByIdAsync(int id, CancellationToken ct);
-    Task<AdminCustomQuoteDetailsDto> CreateQuoteAsync(int CustomRequestId, AdminCreateCustomQuoteDto dto, CancellationToken ct);
+    Task<AdminCustomRequestDetailsDto?> GetByIdAsync(int id, CancellationToken ct);
+    Task<AdminCustomQuoteDetailsDto> CreateQuoteAsync(int customRequestId, AdminCreateCustomQuoteDto dto, CancellationToken ct);
     Task<bool> SendQuoteAsync(int quoteId, CancellationToken ct);
 }
