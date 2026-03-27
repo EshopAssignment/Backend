@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controllers;
 
-[Route("api/admin/custom-request")]
+[Route("api/admin/custom-requests")]
 [ApiController]
 [Authorize(Roles = "Admin")]
 
@@ -25,8 +25,8 @@ public class AdminCustomRequestsController(IAdminCustomRequestService service) :
         return Ok(res);
     }
 
-    [HttpGet("{id}")]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PagedResult<AdminCustomRequestDetailsDto>))]
+    [HttpGet("{id:int}")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(AdminCustomRequestDetailsDto))]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(int id, CancellationToken ct = default)
     {
