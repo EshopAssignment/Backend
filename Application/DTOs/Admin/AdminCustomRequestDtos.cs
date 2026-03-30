@@ -6,6 +6,7 @@ namespace Application.DTOs.Admin;
 public sealed record AdminCustomRequestListItemDto(
     int Id,
     DateTime CreatedAtUtc,
+    DateTime UpdatedAtUtc,
     string Name,
     string Email,
     string? Phone,
@@ -18,6 +19,7 @@ public sealed record AdminCustomQuoteListItemDto(
     string Title,
     CustomQuoteStatus Status,
     decimal TotalIncVat,
+    string? InternalNote,
     DateTime? SentAtUtc,
     DateTime? ExpiresAtUtc
 );

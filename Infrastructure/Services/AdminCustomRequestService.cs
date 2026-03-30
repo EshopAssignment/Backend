@@ -5,7 +5,6 @@ using Application.Interfaces.ACS;
 using Domain.Entities;
 using Domain.Enums;
 using Infrastructure.Persistence;
-using Infrastructure.Services.Acs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -106,6 +105,7 @@ public class AdminCustomRequestService(
             .Select(x => new AdminCustomRequestListItemDto(
                 Id: x.Id,
                 CreatedAtUtc: x.CreatedAtUtc,
+                UpdatedAtUtc: x.UpdatedAtUtc,
                 Name: x.Name,
                 Email: x.Email,
                 Phone: x.Phone,
@@ -142,6 +142,7 @@ public class AdminCustomRequestService(
                 Status: x.Status,
                 TotalIncVat: x.TotalIncVat,
                 SentAtUtc: x.SentAtUtc,
+                InternalNote: x.InternalNote,
                 ExpiresAtUtc: x.ExpiresAtUtc
             ))
             .ToList();
