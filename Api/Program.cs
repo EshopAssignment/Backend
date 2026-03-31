@@ -6,6 +6,7 @@ using Application.Assemblers;
 using Application.Interfaces;
 using Application.Interfaces.ACS;
 using Application.Interfaces.Auth;
+using Application.Options;
 using Domain.Entities.Identity;
 using Domain.Stripe;
 using Infrastructure.Auth;
@@ -115,6 +116,9 @@ builder.Services.AddScoped<IAdminCustomRequestService, AdminCustomRequestService
 builder.Services.AddSingleton(_ => new Stripe.StripeClient(secretKey));
 builder.Services.AddScoped<BlobUploadService>();
 builder.Services.AddScoped<IAdminDashboardService, AdminDashboardService>();
+builder.Services.Configure<FulfillmentOptions>(
+    builder.Configuration.GetSection(FulfillmentOptions.SectionName));
+builder.Services.AddScoped<IAdminFulfillmentService, AdminFulfillmentService>();
 //Token Service
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.AddScoped<ITokenRefreshStore, TokenRefreshStore>();
