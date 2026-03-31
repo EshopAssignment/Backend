@@ -17,8 +17,8 @@ public class Order
     public string? CustomerFirstName { get; set; }
     public string? CustomerLastName { get; set; } 
     public string? CustomerEmail { get; set; } 
-    public string? CustomerPhoneNumber { get; set; } 
-    
+    public string? CustomerPhoneNumber { get; set; }
+    //Customer Information Management
     public void SetCustomerEmail(string email)
     {
         CustomerEmail = email;
@@ -50,13 +50,12 @@ public class Order
     public string? ServicePointName { get; private set; }
     public string? ServicePointAddress { get; private set; }
     public string? TrackingNumber { get; private set; }
-
+    //tracking management
     public void SetTracking(string trackingNumber)
     {
         TrackingNumber = string.IsNullOrWhiteSpace(trackingNumber) ? null : trackingNumber.Trim();
         Touch();
     }
-
     public void ClearTrackingNumber()
     {
         TrackingNumber = null;
@@ -73,6 +72,50 @@ public class Order
     //Cart Association
     public string CartId { get; private set; } = null!;
     public void SetCartId(string cartId) => CartId = cartId;
+    //Fullfilment
+    public DateTime? ConfirmedAt { get; private set; }
+    public FulfillmentStatus FulfillmentStatus { get; private set; } = FulfillmentStatus.Unreviewed;
+    public DateTime? FulfilledAt { get; private set; }
+    public string? FulfillmentNote { get; private set; }
+
+
+    //fullfillment management
+    public void MarkReadyForFulfillment()
+    {
+        EnsureFulfillmentAllowed();
+        FulfillmentStatus = FulfillmentStatus.Ready;
+        Touch();
+    }
+
+    public void MarkFulfilled(string? note = null)
+    {
+        EnsureFulfillmentAllowed();
+        FulfillmentStatus = FulfillmentStatus.Fulfilled;
+        FulfilledAt = DateTime.UtcNow;
+        FulfillmentNote = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+        Touch();
+    }
+
+    public void ReopenFulfillment(string? note = null)
+    {
+        EnsureFulfillmentAllowed();
+        FulfillmentStatus = FulfillmentStatus.Ready;
+        FulfilledAt = null;
+        FulfillmentNote = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+        Touch();
+    }
+
+    public void SetFulfillmentNote(string? note)
+    {
+        FulfillmentNote = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+        Touch();
+    }
+
+    private void EnsureFulfillmentAllowed()
+    {
+        if (OrderStatus is OrderStatus.Cancelled or OrderStatus.Failed or OrderStatus.Refunded)
+            throw new InvalidOperationException("Fulfillment kan inte ändras för en annullerad, misslyckad eller återbetald order.");
+    }
 
 
     // Order Items
@@ -108,7 +151,16 @@ public class Order
     }
 
     // Order Status Management
-    public void MarkConfirmed() { OrderStatus = OrderStatus.Confirmed; Touch(); }
+    public void MarkConfirmed()
+    {
+        OrderStatus = OrderStatus.Confirmed;
+        ConfirmedAt ??= DateTime.UtcNow;
+
+        if (FulfillmentStatus == FulfillmentStatus.Unreviewed)
+            FulfillmentStatus = FulfillmentStatus.Ready;
+
+        Touch();
+    }
     public void MarkProcessing() { OrderStatus = OrderStatus.Processing; Touch(); }
     public void MarkShipped() { OrderStatus = OrderStatus.Shipped; Touch(); }
     public void MarkCompleted() { OrderStatus = OrderStatus.Completed; Touch(); }
@@ -142,14 +194,12 @@ public class Order
 
     //readiness checks for gating
     [NotMapped]
-
     public bool CustomerReady => 
         !string.IsNullOrWhiteSpace(CustomerFirstName)
         && !string.IsNullOrWhiteSpace(CustomerLastName)
         && !string.IsNullOrWhiteSpace(CustomerEmail);
 
     [NotMapped]
-
     public bool AddressReady =>
         ShippingAddress is not null
         && !string.IsNullOrWhiteSpace(ShippingAddress.Street)
@@ -158,7 +208,6 @@ public class Order
         && !string.IsNullOrWhiteSpace(ShippingAddress.Country);
 
     [NotMapped]
-
     public bool ShippingSelected =>
         ShippingCarrier != ShippingCarrier.None
         && ShippingMethod != ShippingMethod.None;

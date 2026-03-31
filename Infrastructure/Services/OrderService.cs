@@ -165,6 +165,7 @@ public class OrderService(PallshoppenDbContext dbContext, AuthDbContext authCont
            
             order.Payment.MarkAuthorized(paymentIntentId, latestChargeId, amount, methodType, DateTime.UtcNow);
             order.MarkConfirmed();
+            order.MarkReadyForFulfillment();
             await _db.SaveChangesAsync(ct);
 
             var evt = new OrderConfirmedEvent(

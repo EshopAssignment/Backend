@@ -57,5 +57,8 @@
     "ConnectionString": "Dasd",
     "ContainerName": "product-images"
   },
+  "Fulfillment": {
+    "OverdueAfterDays": 5
+  },
   "AllowedHosts": "*"
 }
