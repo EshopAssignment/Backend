@@ -202,6 +202,34 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
               .WithOne(i => i.Order)
               .HasForeignKey(i => i.OrderId)
               .OnDelete(DeleteBehavior.Cascade);
+
+        entity.Property(o => o.FulfillmentStatus)
+            .HasConversion<int>()
+            .HasDefaultValue(FulfillmentStatus.Unreviewed);
+
+        entity.Property(o => o.FulfillmentNote)
+            .HasMaxLength(1000)
+            .IsRequired(false);
+
+        entity.Property(o => o.ConfirmedAt)
+            .IsRequired(false);
+
+        entity.Property(o => o.FulfilledAt)
+            .IsRequired(false);
+
+        entity.HasIndex(o => o.OrderStatus)
+            .HasDatabaseName("IX_Orders_OrderStatus");
+
+        entity.HasIndex(o => o.FulfillmentStatus)
+            .HasDatabaseName("IX_Orders_FulfillmentStatus");
+
+        entity.HasIndex(o => new {o.FulfillmentStatus, o.ConfirmedAt})
+            .HasDatabaseName("IX_Orders_FulfillmentStatus_ConfirmedAt");
+
+        entity.HasIndex(o => o.FulfilledAt)
+            .HasDatabaseName("IX_Orders_FulfilledAt");
+
+
     }
     private static void ConfigureOrderItem(EntityTypeBuilder<OrderItem> entity)
     {
