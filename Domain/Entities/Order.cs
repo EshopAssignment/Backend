@@ -73,7 +73,11 @@ public class Order
     //Cart Association
     public string CartId { get; private set; } = null!;
     public void SetCartId(string cartId) => CartId = cartId;
-
+    //Fullfilment
+    public DateTime? ConfirmedAt { get; private set; }
+    public FulfillmentStatus FulfillmentStatus { get; private set; } = FulfillmentStatus.Unreviewed;
+    public DateTime? FulfilledAt { get; private set; }
+    public string? FulfillmentNote { get; private set; }
 
     // Order Items
     public ICollection<OrderItem> OrderItems { get; set; } = [];
@@ -108,7 +112,16 @@ public class Order
     }
 
     // Order Status Management
-    public void MarkConfirmed() { OrderStatus = OrderStatus.Confirmed; Touch(); }
+    public void MarkConfirmed()
+    {
+        OrderStatus = OrderStatus.Confirmed;
+        ConfirmedAt ??= DateTime.UtcNow;
+
+        if (FulfillmentStatus == FulfillmentStatus.Unreviewed)
+            FulfillmentStatus = FulfillmentStatus.Ready;
+
+        Touch();
+    }
     public void MarkProcessing() { OrderStatus = OrderStatus.Processing; Touch(); }
     public void MarkShipped() { OrderStatus = OrderStatus.Shipped; Touch(); }
     public void MarkCompleted() { OrderStatus = OrderStatus.Completed; Touch(); }
@@ -142,14 +155,12 @@ public class Order
 
     //readiness checks for gating
     [NotMapped]
-
     public bool CustomerReady => 
         !string.IsNullOrWhiteSpace(CustomerFirstName)
         && !string.IsNullOrWhiteSpace(CustomerLastName)
         && !string.IsNullOrWhiteSpace(CustomerEmail);
 
     [NotMapped]
-
     public bool AddressReady =>
         ShippingAddress is not null
         && !string.IsNullOrWhiteSpace(ShippingAddress.Street)
@@ -158,7 +169,6 @@ public class Order
         && !string.IsNullOrWhiteSpace(ShippingAddress.Country);
 
     [NotMapped]
-
     public bool ShippingSelected =>
         ShippingCarrier != ShippingCarrier.None
         && ShippingMethod != ShippingMethod.None;
