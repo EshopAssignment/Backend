@@ -43,3 +43,7 @@ public sealed record MarkOrderFulfillmentRequest(
 
 public sealed record ReopenFulfillmentRequest(
     string? Note);
+
+public sealed record SetFulfillmentNoteRequest(
+    string? Note
+);
