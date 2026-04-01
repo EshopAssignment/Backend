@@ -1,5 +1,9 @@
 ﻿
+using System.Text.Json.Serialization;
+
 namespace Domain.Enums;
+
+[JsonConverter(typeof(JsonStringEnumConverter<FulfillmentStatus>))]
 
 public enum FulfillmentStatus
 {
