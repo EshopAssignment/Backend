@@ -14,7 +14,7 @@ public sealed record AdminDashboardDto(
     IReadOnlyList<AdminTopProductDto> TopProductsByRevenue,
     IReadOnlyList<AdminOrderStatusCountDto> StatusBreakdown,
     IReadOnlyList<AdminOrderListItemDto> RecentOrders,
-    IReadOnlyList<AdminFulfillmentDashboardDto> FulillmentSummary);
+    AdminFulfillmentSummaryDto FulillmentSummary);
 
 public sealed record AdminDashboardSummaryDto(
     decimal Revenue,
