@@ -10,7 +10,17 @@ public class ProductImage
     public Product Product { get; set; } = null!;
 
     [MaxLength(2048)]
-    public string Url { get; set; } = null!;
+    public string OriginalUrl { get; set; } = null!;
+    [MaxLength(2048)]
+    public string LargeUrl { get; set; } = null!;
+    [MaxLength(2048)]
+    public string CardUrl { get; set; } = null!;
+    [MaxLength(2048)]
+    public string StackUrl { get; set; } = null!;
+    [MaxLength(2048)]
+    public string ThumbUrl { get; set; } = null!;
+
+
 
     public int SortOrder { get; set; }
     public bool IsPrimary { get; set; }
