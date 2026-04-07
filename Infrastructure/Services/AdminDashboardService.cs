@@ -17,9 +17,18 @@ public sealed class AdminDashboardService(PallshoppenDbContext dbContext) : IAdm
         OrderStatus.Refunded
     ];
 
+    private static readonly OrderStatus[] FulfillmentRelevantStatuses =
+    [
+        OrderStatus.Confirmed,
+        OrderStatus.Processing
+    ];
+
     public async Task<AdminDashboardDto> GetAsync(AdminDashboardQueryDto query, CancellationToken ct)
     {
         var (fromUtc, toUtc) = ResolveRange(query);
+        var utcNow = DateTime.UtcNow;
+        var overdueCutoff = utcNow.AddDays(-5);
+        var startOfTodayUtc = utcNow.Date;
 
         var baseOrders = dbContext.Orders
             .AsNoTracking()
@@ -130,13 +139,39 @@ public sealed class AdminDashboardService(PallshoppenDbContext dbContext) : IAdm
             ))
             .ToListAsync(ct);
 
+        var fulfillmentBase = dbContext.Orders
+            .AsNoTracking()
+            .Where(o => FulfillmentRelevantStatuses.Contains(o.OrderStatus));
+
+        var readyCount = await fulfillmentBase.CountAsync(o =>
+            o.FulfillmentStatus != FulfillmentStatus.Fulfilled &&
+            (o.ConfirmedAt ?? o.CreatedAt) > overdueCutoff, ct);
+
+        var overdueCount = await fulfillmentBase.CountAsync(o =>
+            o.FulfillmentStatus != FulfillmentStatus.Fulfilled &&
+            (o.ConfirmedAt ?? o.CreatedAt) <= overdueCutoff, ct);
+
+        var fulfilledTodayCount = await dbContext.Orders
+            .AsNoTracking()
+            .CountAsync(o =>
+                o.FulfillmentStatus == FulfillmentStatus.Fulfilled &&
+                o.FulfilledAt != null &&
+                o.FulfilledAt >= startOfTodayUtc, ct);
+
+        var fulfillment = new AdminFulfillmentSummaryDto(
+            ReadyCount: readyCount,
+            OverdueCount: overdueCount,
+            FulfilledTodayCount: fulfilledTodayCount
+        );
+
         return new AdminDashboardDto(
             Summary: summary,
             RevenueSeries: revenueSeries,
             TopProductsByUnits: topProductsByUnits,
             TopProductsByRevenue: topProductsByRevenue,
             StatusBreakdown: statusBreakdown,
-            RecentOrders: recentOrders
+            RecentOrders: recentOrders,
+            FulillmentSummary: fulfillment
         );
     }
 
