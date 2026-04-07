@@ -155,7 +155,7 @@ public class AdminProductService(
         return _assembler.ToDto(entity);
     }
 
-    public async Task<ProductDto> UpdateAsync(int id, AdminUpdateProductRequestDto req, CancellationToken ct)
+    public async Task<ProductDto> UpdateAsync(int id, AdminUpdateProductRequestDto req, CancellationToken ct) 
     {
         ArgumentNullException.ThrowIfNull(req);
 
@@ -347,10 +347,14 @@ public class AdminProductService(
     private static List<ProductImage> BuildImages(IEnumerable<AdminProductImageRequestDto>? reqImages)
     {
         var imgs = (reqImages ?? Enumerable.Empty<AdminProductImageRequestDto>())
-            .Where(x => !string.IsNullOrEmpty(x.Url))
+            .Where(x => !string.IsNullOrEmpty(x.CardUrl))
             .Select(x => new ProductImage
             {
-                Url = x.Url.Trim(),
+                OriginalUrl = x.OriginalUrl.Trim(),
+                LargeUrl = x.LargeUrl.Trim(),
+                CardUrl = x.CardUrl.Trim(),
+                StackUrl = x.StackUrl.Trim(),
+                ThumbUrl = x.ThumbUrl.Trim(),
                 SortOrder = x.SortOrder,
                 IsPrimary = x.IsPrimary,
                 AltText = string.IsNullOrWhiteSpace(x.AltText) ? null : x.AltText.Trim()
