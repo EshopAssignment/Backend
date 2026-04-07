@@ -13,13 +13,17 @@ public class ProductAssembler
             .ThenBy(x => x.SortOrder)
             .Select(x => new ProductImageDto(
                 x.Id,
-                x.Url,
+                x.OriginalUrl,
+                x.LargeUrl,
+                x.CardUrl,
+                x.StackUrl,
+                x.ThumbUrl,
                 x.SortOrder,
                 x.IsPrimary,
                 x.AltText))
             .ToList();
 
-        var primary = images.FirstOrDefault()?.Url;
+        var primary = images.FirstOrDefault()?.CardUrl;
         var available = Math.Max(0, p.OnHand - p.Reserved);
         var stockStatus =
             available <= 0 ? StockStatus.OutOfStock :
@@ -53,7 +57,7 @@ public class ProductAssembler
             p.Images
             .OrderByDescending(i => i.IsPrimary)
             .ThenBy(i => i.SortOrder)
-            .Select(i => i.Url)
+            .Select(i => i.CardUrl)
             .FirstOrDefault(),
             
             p.Images
@@ -61,7 +65,11 @@ public class ProductAssembler
             .ThenBy(i => i.SortOrder)
             .Select(i => new ProductImageDto(
                 i.Id,
-                i.Url,
+                i.OriginalUrl,
+                i.LargeUrl,
+                i.CardUrl,
+                i.StackUrl,
+                i.ThumbUrl,
                 i.SortOrder,
                 i.IsPrimary,
                 i.AltText))
