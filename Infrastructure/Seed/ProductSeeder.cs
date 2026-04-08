@@ -1,7 +1,6 @@
 ﻿using Domain.Entities;
 using Domain.Enums;
 using Infrastructure.Persistence;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Seed;
@@ -26,7 +25,6 @@ public static class ProductSeeder
 
     private static List<Product> GetCurated()
     {
-
         return new()
         {
             Make(
@@ -37,7 +35,7 @@ public static class ProductSeeder
                 price: 169m,
                 onHand: 500,
                 reserved: 10,
-                img: "https://picsum.photos/seed/pallet-eur-1/800/600",
+                imageSeed: "pallet-eur-1",
                 desc: "Ny EUR-pall, perfekt för logistik och lager. Stabil, standardmått, inga överraskningar."
             ),
             Make(
@@ -48,7 +46,7 @@ public static class ProductSeeder
                 price: 89m,
                 onHand: 80,
                 reserved: 30,
-                img: "https://picsum.photos/seed/pallet-eur-2/800/600",
+                imageSeed: "pallet-eur-2",
                 desc: "Begagnad EUR-pall. Lite charm, lite skav, fungerar fortfarande. Som de flesta människor."
             ),
             Make(
@@ -59,7 +57,7 @@ public static class ProductSeeder
                 price: 249m,
                 onHand: 25,
                 reserved: 24,
-                img: "https://picsum.photos/seed/pallet-ind-1/800/600",
+                imageSeed: "pallet-ind-1",
                 desc: "Upprustad industripall med extra bärighet. Nästan slut i lager (för att testa low-stock)."
             ),
             Make(
@@ -70,7 +68,7 @@ public static class ProductSeeder
                 price: 119m,
                 onHand: 0,
                 reserved: 0,
-                img: "https://picsum.photos/seed/pallet-half-1/800/600",
+                imageSeed: "pallet-half-1",
                 desc: "Ny halvpall. Slut i lager (för att testa out-of-stock)."
             ),
             Make(
@@ -81,7 +79,7 @@ public static class ProductSeeder
                 price: 399m,
                 onHand: 12,
                 reserved: 0,
-                img: "https://picsum.photos/seed/pallet-custom-1/800/600",
+                imageSeed: "pallet-custom-1",
                 desc: "Måttad efter behov. Bra när standard inte räcker och man vägrar kompromissa."
             ),
             Make(
@@ -92,11 +90,12 @@ public static class ProductSeeder
                 price: 59m,
                 onHand: 200,
                 reserved: 0,
-                img: "https://picsum.photos/seed/pallet-other-1/800/600",
+                imageSeed: "pallet-other-1",
                 desc: "Pallkragar och blandat. Bra för lager, odling, eller att bygga små fästningar av trä."
             ),
         };
     }
+
     private static IEnumerable<Product> Generate(int count, int seedOffset)
     {
         var rnd = new Random(1337 + seedOffset);
@@ -129,11 +128,12 @@ public static class ProductSeeder
                 _ => 0.80m
             };
 
-            var jitter = (decimal)rnd.Next(-15, 35); 
+            var jitter = (decimal)rnd.Next(-15, 35);
             var price = Math.Max(19m, basePrice * conditionFactor + jitter);
 
             var mode = rnd.Next(100);
-            int onHand, reserved;
+            int onHand;
+            int reserved;
 
             if (mode < 10)
             {
@@ -169,11 +169,12 @@ public static class ProductSeeder
                 price: decimal.Round(price, 0),
                 onHand: onHand,
                 reserved: reserved,
-                img: $"https://picsum.photos/seed/{Slugify(sku)}/800/600",
+                imageSeed: Slugify(sku),
                 desc: desc
             );
         }
     }
+
     private static Product Make(
         string sku,
         string name,
@@ -182,7 +183,7 @@ public static class ProductSeeder
         decimal price,
         int onHand,
         int reserved,
-        string img,
+        string imageSeed,
         string desc)
     {
         return new Product
@@ -204,14 +205,22 @@ public static class ProductSeeder
             {
                 new ProductImage
                 {
-                    Url = img,
-                    SortOrder = 0,
+                    OriginalUrl = Picsum(imageSeed, 1600, 1200),
+                    LargeUrl = Picsum(imageSeed, 1400, 1050),
+                    CardUrl = Picsum(imageSeed, 700, 525),
+                    StackUrl = Picsum(imageSeed, 480, 360),
+                    ThumbUrl = Picsum(imageSeed, 160, 120),
+                    SortOrder = 1,
                     IsPrimary = true,
                     AltText = name
                 }
             }
         };
     }
+
+    private static string Picsum(string seed, int width, int height)
+        => $"https://picsum.photos/seed/{seed}/{width}/{height}";
+
     private static string SkuFor(ProductType type, ProductCondition condition, int n)
     {
         var t = type switch
@@ -233,6 +242,7 @@ public static class ProductSeeder
 
         return $"PAL-{t}-{c}-{n:0000}";
     }
+
     private static string TypeLabel(ProductType t) => t switch
     {
         ProductType.EuroPallet => "EURO-pall",
@@ -242,24 +252,33 @@ public static class ProductSeeder
         ProductType.SpecialPallet => "Special-pall",
         _ => "Övrigt"
     };
+
     private static string ConditionLabel(ProductCondition c) => c switch
     {
         ProductCondition.New => "Ny",
         ProductCondition.Refurbished => "Upprustad",
         _ => "Begagnad"
     };
+
     private static string Slugify(string s)
     {
-        if (string.IsNullOrWhiteSpace(s)) return "";
+        if (string.IsNullOrWhiteSpace(s))
+            return "";
+
         s = s.Trim().ToLowerInvariant();
 
         var chars = s
-            .Replace("å", "a").Replace("ä", "a").Replace("ö", "o")
+            .Replace("å", "a")
+            .Replace("ä", "a")
+            .Replace("ö", "o")
             .Select(ch => char.IsLetterOrDigit(ch) ? ch : '-')
             .ToArray();
 
         var slug = new string(chars);
-        while (slug.Contains("--")) slug = slug.Replace("--", "-");
+
+        while (slug.Contains("--"))
+            slug = slug.Replace("--", "-");
+
         return slug.Trim('-');
     }
 }
