@@ -266,7 +266,7 @@ public class ProductService(
                 p.Images
                     .OrderByDescending(i => i.IsPrimary)
                     .ThenBy(i => i.SortOrder)
-                    .Select(i => i.CardUrl)
+                    .Select(i => i.ThumbUrl)
                     .FirstOrDefault() ?? "",
                 p.Slug ?? "",
                 p.Sku ?? ""))
