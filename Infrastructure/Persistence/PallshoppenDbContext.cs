@@ -59,6 +59,7 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
 
             entity.HasIndex(p => new { p.IsActive, p.Sku })
                   .HasDatabaseName("IX_Products_IsActive_Sku");
+
             entity.HasIndex(p => new { p.IsActive, p.Slug })
                   .HasDatabaseName("IX_Products_IsActive_Slug");
         });
@@ -66,15 +67,34 @@ public class PallshoppenDbContext(DbContextOptions<PallshoppenDbContext> options
         {
             entity.ToTable("ProductImages");
 
-            entity.Property(i => i.Url)
+            entity.Property(i => i.OriginalUrl)
+                  .HasMaxLength(2048)
+                  .IsRequired();
+
+            entity.Property(i => i.LargeUrl)
+                  .HasMaxLength(2048)
+                  .IsRequired();
+
+            entity.Property(i => i.CardUrl)
+                  .HasMaxLength(2048)
+                  .IsRequired();
+
+            entity.Property(i => i.StackUrl)
+                  .HasMaxLength(2048)
+                  .IsRequired();
+
+            entity.Property(i => i.ThumbUrl)
                   .HasMaxLength(2048)
                   .IsRequired();
 
             entity.Property(i => i.AltText)
-                  .HasMaxLength(200);
+                  .HasMaxLength(100);
 
-            entity.Property(i => i.SortOrder).HasDefaultValue(0);
-            entity.Property(i => i.IsPrimary).HasDefaultValue(false);
+            entity.Property(i => i.SortOrder)
+                  .HasDefaultValue(0);
+
+            entity.Property(i => i.IsPrimary)
+                  .HasDefaultValue(false);
 
             entity.Property(i => i.CreatedAtUtc)
                   .HasDefaultValueSql("SYSUTCDATETIME()");
