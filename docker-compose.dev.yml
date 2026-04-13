@@ -45,11 +45,21 @@ services:
       timeout: 3s
       retries: 20
 
-  rabbitmq: 
-    image: rabbitmq:latest
+  rabbitmq:
+    image: rabbitmq:3-management
     container_name: pallshoppen-rabbitmq
+    hostname: rabbitmq
+    environment:
+        RABBITMQ_DEFAULT_USER: guest
+        RABBITMQ_DEFAULT_PASS: guest
     ports:
-     - "5672:5672"
-     - "15672:15672"
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+        test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+        interval: 10s
+        timeout: 5s
+        retries: 10
+
 volumes:
   pallshoppen_sql_dev:
