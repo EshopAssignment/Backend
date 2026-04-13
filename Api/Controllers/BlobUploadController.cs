@@ -18,10 +18,22 @@ public class BlobUploadController(BlobUploadService blobService) : ControllerBas
         if (string.IsNullOrWhiteSpace(dto.FileName))
             return BadRequest("Invalid file name");
 
-        if (!dto.ContentType.StartsWith("image/"))
+        if (string.IsNullOrWhiteSpace(dto.ContentType) || !dto.ContentType.StartsWith("image/"))
             return BadRequest("Only image uploads are allowed");
 
-        var (uploadUri, publicUrl) = _blobService.CreateUploadSas(dto.ContentType);
-        return Ok(new BlobUploadRequestResponse(uploadUri.ToString(), publicUrl));
+        var (uploadUri, publicUrl, blobName) = _blobService.CreateUploadSas(dto.ContentType);
+        return Ok(new BlobUploadRequestResponse(uploadUri.ToString(), publicUrl, blobName));
+    }
+
+    [HttpPost("finalize")]
+    [ProducesResponseType(typeof(ProcessedImageDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> FinalizeUpload([FromBody] FinalizeBlobUploadDto dto, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(dto.BlobName))
+            return BadRequest("BlobName is required");
+
+        var result = await _blobService.ProcessImageAsync(dto.BlobName, ct);
+        return Ok(result);
     }
 }

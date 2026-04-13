@@ -17,7 +17,7 @@ public class Product
 
     [NotMapped]
     public string? PrimaryImageUrl => 
-        Images.OrderByDescending(x => x.IsPrimary).ThenBy(x => x.SortOrder).Select(x => x.Url).FirstOrDefault();
+        Images.OrderByDescending(x => x.IsPrimary).ThenBy(x => x.SortOrder).Select(x => x.CardUrl).FirstOrDefault();
 
     public decimal PriceExVat { get; set; }
     public VatRate VatRate { get; set; } = Enums.VatRate.Vat25;
