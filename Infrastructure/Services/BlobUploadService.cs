@@ -57,9 +57,9 @@ public class BlobUploadService
         var fileName = Path.GetFileNameWithoutExtension(blobName);
 
         var largeUrl = await SaveVariantAsync(image, $"products/large/{fileName}.webp", maxWidth: 1400, ct);
-        var cardUrl = await SaveVariantAsync(image, $"products/card/{fileName}.webp", maxWidth: 700, ct);
-        var stackUrl = await SaveVariantAsync(image, $"products/stack/{fileName}.webp", maxWidth: 480, ct);
-        var thumbUrl = await SaveVariantAsync(image, $"products/thumb/{fileName}.webp", maxWidth: 160, ct);
+        var cardUrl = await SaveVariantAsync(image, $"products/card/{fileName}.webp", maxWidth: 165, ct);
+        var stackUrl = await SaveVariantAsync(image, $"products/stack/{fileName}.webp", maxWidth: 60, ct);
+        var thumbUrl = await SaveVariantAsync(image, $"products/thumb/{fileName}.webp", maxWidth: 40, ct);
 
         return new ProcessedImageDto(
             originalBlob.Uri.ToString(),
