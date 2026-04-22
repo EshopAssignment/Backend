@@ -338,7 +338,7 @@ ConnectionStrings__DefaultConnection="Server=localhost,1433;Database=EshopTestDb
 
 ## Known Limitations
 
-- `dotnet build Pallshoppen.slnx` currently fails because `Api/Api.csproj` and `Infrastructure/Infrastructure.csproj` reference `..\..\Contracts\Contracts.csproj`, which resolves outside this backend folder. `Contracts/Contracts.csproj` exists at `Backend/Contracts/Contracts.csproj`.
+- `dotnet run --project Api --launch-profile http` requires a valid MassTransit 9 license through `MT_LICENSE` or `MT_LICENSE_PATH`; without it, startup fails during bus configuration.
 - `docker-compose.yml` starts the API, SQL Server, and Redis, but `Program.cs` configures MassTransit to connect to RabbitMQ at `localhost` and the compose file does not define a RabbitMQ service for the API container.
 - `docker-compose.dev.yml` includes RabbitMQ, but `Program.cs` still hardcodes RabbitMQ host `localhost`, username `guest`, and password `guest` instead of reading broker settings from configuration.
 - The repository contains `Api/dummy.appsettings.json`, but no real `Api/appsettings.json`; local configuration must be provided before running.
