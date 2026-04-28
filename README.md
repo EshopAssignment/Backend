@@ -54,6 +54,15 @@ Controller -> Application interface -> Infrastructure service -> EF Core / Redis
 
 Order domain events are written to the `OutboxMessages` table inside the same database transaction as order changes, then published by a hosted background worker to RabbitMQ. Emails are queued in the `EmailOutbox` table and delivered by a separate hosted worker.
 
+### Process Diagrams
+
+The checkout and order-processing flow is documented with these UML diagrams:
+
+- [Activity diagram](docs/diagrams/activity-diagram.pdf)
+- Sequence diagram:
+
+![Pallshoppen checkout sequence diagram](docs/diagrams/pallshoppen-sequence.svg)
+
 ## Project Structure
 
 ```text
