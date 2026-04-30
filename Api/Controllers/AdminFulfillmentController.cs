@@ -2,12 +2,15 @@
 using Application.DTOs.Admin;
 using Application.Interfaces;
 using Domain.Enums;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
+[Authorize(Roles = "Admin")]
+
 public class AdminFulfillmentController(IAdminFulfillmentService fulfillmentService) : ControllerBase
 {
     [HttpGet("queue")]
