@@ -351,5 +351,4 @@ ConnectionStrings__DefaultConnection="Server=localhost,1433;Database=EshopTestDb
 - `docker-compose.yml` starts the API, SQL Server, and Redis, but `Program.cs` configures MassTransit to connect to RabbitMQ at `localhost` and the compose file does not define a RabbitMQ service for the API container.
 - `docker-compose.dev.yml` includes RabbitMQ, but `Program.cs` still hardcodes RabbitMQ host `localhost`, username `guest`, and password `guest` instead of reading broker settings from configuration.
 - The repository contains `Api/dummy.appsettings.json`, but no real `Api/appsettings.json`; local configuration must be provided before running.
-- `AdminFulfillmentController` is routed under `api/AdminFulfillment` and does not declare an `[Authorize]` attribute in the controller code.
 - Startup seeding creates a default admin user in code. Change or remove seeded credentials before using this outside local development.
